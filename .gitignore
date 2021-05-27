@@ -1,0 +1,11 @@
+*.so
+*.o
+export/*
+*.depend
+*.spec
+*~
+*.DS_Store
+*.log
+*.status
+*.a
+.vscode
