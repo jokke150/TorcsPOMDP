@@ -456,6 +456,8 @@ typedef struct CarElt
     int         RESTART;
     int         RESET; 
 
+    CarElt() = default;
+
     CarElt(const CarElt& other) : index{other.index},
                                   info{other.info},
                                   pub{other.pub},

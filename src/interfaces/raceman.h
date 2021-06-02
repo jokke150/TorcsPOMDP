@@ -89,6 +89,8 @@ typedef struct Situation {
     int			nbPlayers;	/**< number of human player in local (splitted screen) */
     tCarElt		**cars;		/**< list of cars */ 
 
+    Situation() = default;
+
     Situation(const Situation& other) : raceInfo{other.raceInfo},
                                         deltaTime{other.deltaTime},
                                         currentTime{other.currentTime},
@@ -101,7 +103,7 @@ typedef struct Situation {
 	    	carList[i] = *(other.cars[i]);
             cars[i] = &carList[i];
             if (i > 0) {
-                carList[i - 1].next = cars[i]
+                carList[i - 1].next = cars[i];
             }
 	    }
     };
@@ -121,7 +123,7 @@ typedef struct Situation {
 	    	carList[i] = *(other.cars[i]);
             cars[i] = &carList[i];
             if (i > 0) {
-                carList[i - 1].next = cars[i]
+                carList[i - 1].next = cars[i];
             }
 	    }
         return *this;

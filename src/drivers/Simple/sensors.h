@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <vector>
 #include <car.h>
 #include <robottools.h>
 #include <raceman.h>
@@ -28,7 +29,7 @@ class SingleSensor {
 
 		void setSingleSensor(float angle, float range);
 		inline float getSingleSensorOut() { return sensor_out; }
-		int getSingleSensorOutDiscrete(float *bins, int size);
+		int getSingleSensorOutDiscrete(const std::vector<float>& bins, int size);
 		void update();
 
 	protected:
@@ -49,6 +50,7 @@ class SingleSensor {
 
 class Sensors {
 	public:
+		Sensors(int sensors_number);
 		Sensors(tCarElt *car, int sensors_number);
 		~Sensors();
 
@@ -65,18 +67,15 @@ class Sensors {
 		//		if the car go behind the track border the value in < 0, don't consider it!
 		float getSensorOut(int sensor_id);
 
-		int getSensorOutDiscrete(int sensor_id, float *bins, int size);
+		int getSensorOutDiscrete(int sensor_id, const std::vector<float>& bins, int size);
 
 		void sensors_update();
+
+		void sensors_update(tCarElt *car);
 
 	protected:
 		SingleSensor *sensor;
 		int sensors_num;
-};
-
-class Discretizer {
-	public:
-		static int search(float *array, int start_idx, int end_idx, float search_val);
 };
 
 #endif

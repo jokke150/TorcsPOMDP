@@ -16,7 +16,15 @@
 
 #include "sensors.h"
 
+#include "TorcsPomdp.hpp"
+
 #define HALF_PI PI / 2
+
+Sensors::Sensors(int sensors_number)
+{
+	sensors_num = sensors_number;
+	sensor = new SingleSensor[sensors_num];
+}
 
 Sensors::Sensors(tCarElt *car, int sensors_number)
 {
@@ -37,6 +45,14 @@ void Sensors::sensors_update()
 		sensor[i].update();
 }
 
+void Sensors::sensors_update(tCarElt *car)
+{
+	for (int i = 0; i < sensors_num; i++) {
+		sensor[i].init(car);
+		sensor[i].update();
+	}
+}
+
 void Sensors::setSensor(int sensor_id, float angle, float range)
 {
 	sensor[sensor_id].setSingleSensor(angle, range);
@@ -47,7 +63,7 @@ float Sensors::getSensorOut(int sensor_id)
 	return sensor[sensor_id].getSingleSensorOut();
 }
 
-int Sensors::getSensorOutDiscrete(int sensor_id, float *bins, int size)
+int Sensors::getSensorOutDiscrete(int sensor_id, const std::vector<float>& bins, int size)
 {
 	return sensor[sensor_id].getSingleSensorOutDiscrete(bins, size);
 }
@@ -58,12 +74,13 @@ void SingleSensor::setSingleSensor(float angle, float range)
 	sensor_range = range;
 }
 
-int SingleSensor::getSingleSensorOutDiscrete(float *bins, int size)
+int SingleSensor::getSingleSensorOutDiscrete(const std::vector<float>& bins, int size)
 {
 	if (sensor_out < 0)
 		return -1; // car behind track border
 	
-	return Discretizer::search(bins, 0, size - 1, sensor_out);
+	// TODO: Move out of this file
+	return pomdp::Discretizer::search(bins, 0, size - 1, sensor_out);
 }
 
 void SingleSensor::update()
@@ -599,16 +616,4 @@ bool SingleSensor::check_down_border_intersect(float angle, float radius_min, fl
 	}
 	else
 		return false;
-}
-
-int Discretizer::search(float *array, int start_idx, int end_idx, float search_val) {
-	if( start_idx == end_idx )
-		return array[start_idx] >= search_val ? start_idx : -1;
-
-	int mid_idx = start_idx + (end_idx - start_idx) / 2;
-
-	if( search_val <= array[mid_idx] )
-		return search( array, start_idx, mid_idx, search_val );
-
-	return search( array, mid_idx+1, end_idx, search_val );
 }
