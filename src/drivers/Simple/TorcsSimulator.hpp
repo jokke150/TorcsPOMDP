@@ -41,11 +41,11 @@ class TorcsSimulator : public Simulator<State, Observation, Action>
 public:
 	/**
 	* @param actions: Reference to the action space.
-	* @param genModel: Reference to the interface of the generative model for the environment.
+	* @param raceEngineInfo: Information about race engine, e.g. the track. Needed for init of generative model.
 	* @param initTorcsState: Reference to the initial torcs state
     * Create a new simulator
     */
-	TorcsSimulator(const std::vector<Action>& actions, const tSimItf& genModel, const tSituation& initTorcsState, tRmInfo *raceEngineInfo;
+	TorcsSimulator(const std::vector<Action>& actions, const tSituation& initTorcsState, tRmInfo& raceEngineInfo);
 	virtual ~TorcsSimulator();
 	virtual double getDiscount() const {return DISCOUNT;}
 	virtual State& sampleInitialState(State& state) const;
@@ -58,9 +58,13 @@ public:
 	virtual void setInitialBelief(const tSituation& initTorcsState);
 private:
 	const std::vector<Action>& actions;
-	const tSimItf& genModel;
-	const tRmInfo *raceEngineInfo;
+	tRmInfo& raceEngineInfo;
 	InitBelief initialBelief;
+	
+	// Generative model
+	tModList *modList = 0;
+	tSimItf genModel;
+	void loadGenModel();
 };
 
 inline
@@ -82,8 +86,11 @@ State InitBelief::sample() const
 }
 
 inline
-TorcsSimulator::TorcsSimulator(const std::vector<Action>& actions, const tSimItf& simulator, const tSituation& initTorcsState, tRmInfo *raceEngineInfo) 
-	: actions{actions}, genModel{genModel}, initialBelief{InitBelief(initTorcsState)}, raceEngineInfo{raceEngineInfo} {}
+TorcsSimulator::TorcsSimulator(const std::vector<Action>& actions, const tSituation& initTorcsState, tRmInfo& raceEngineInfo) 
+	: actions{actions}, raceEngineInfo{raceEngineInfo}, initialBelief{InitBelief(initTorcsState)} 
+{
+	loadGenModel();
+}
 
 inline
 TorcsSimulator::~TorcsSimulator() {}
@@ -101,8 +108,8 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 	const Action& action = getAction(actionIndex);
 	reward = RewardCalculator::reward(state, action);
 	nextState = State{ state };
-	tCarElt *car = nextState.torcsState.cars[0];
-	genModel.config(car, raceEngineInfo);
+	tCarElt* car = nextState.torcsState.cars[0];
+	genModel.config(car, &raceEngineInfo);
 	genModel.update(&nextState.torcsState, RCM_MAX_DT_SIMU, -1);
 	observation = Observation{ nextState };
     double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
@@ -121,6 +128,20 @@ inline
 void TorcsSimulator::setInitialBelief(const tSituation& initTorcsState) 
 {
 	initialBelief = { initTorcsState };
+}
+
+inline
+void TorcsSimulator::loadGenModel() {
+    if (!modList) {
+        const int BUFSIZE = 1024;
+        char buf[BUFSIZE];
+
+        const char* dllname = "simuv2";
+        snprintf(buf, BUFSIZE, "%smodules/simu/copy/%s.%s", GetLibDir (), dllname, DLLEXT);
+        if (GfModLoad(0, buf, &modList)) throw std::runtime_error("Could not load simu.");
+        modList->modInfo->fctInit(modList->modInfo->index, &genModel);
+        genModel.init(raceEngineInfo.s->_ncars, raceEngineInfo.track, raceEngineInfo.raceRules.fuelFactor, raceEngineInfo.raceRules.damageFactor);
+    }
 }
 
 }

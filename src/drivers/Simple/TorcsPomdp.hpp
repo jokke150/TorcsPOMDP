@@ -17,7 +17,7 @@ namespace pomdp
 #define THRESHOLD 0.01
 #define EXPLORATION_CTE 100
 #define PARTICLES 1000
-#define DISCOUNT 0.95
+#define DISCOUNT 0.99
 
 #define REWARD_CENTER 1
 #define PENALTY_OFF_LANE 10.0
@@ -83,7 +83,7 @@ private:
 
 class Discretizer {
 	public:
-		static int search(const std::vector<float>& bins, int start_idx, int end_idx, float search_val);
+		static float search(const std::vector<float>& bins, int start_idx, int end_idx, float search_val);
 };
 
 }

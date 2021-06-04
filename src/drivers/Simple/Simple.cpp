@@ -24,6 +24,7 @@
 #include <string.h> 
 #include <math.h>
 #include <stdexcept>
+#include <iostream>
 
 #include <tgf.h> 
 #include <track.h> 
@@ -42,34 +43,22 @@ using namespace pomdp;
 
 static tTrack *curTrack;
 
-static tdble oldAccel;
-static tdble oldBrake;
-static tdble oldSteer;
-static tdble oldClutch;
-static tdble prevDist;
-static tdble distRaced;
-
-static int oldGear;
-
 #define RACE_RESTART 1
 static int RESTARTING;
-
-static std::vector<Action> discreteSteeringActions{-1.0, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1.0};
-
-static unsigned long total_tics;
-
-// GENERATIVE MODEL
-static tModList *SimpleModList = 0;
-static tSimItf *simItf = nullptr;
 
 // POMCP
 static TorcsSimulator *simulator = nullptr;
 static PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>> *planner = nullptr;
 
+static std::vector<Action> actions{-1.0, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1.0};
+static unsigned long actionsCount;
+static unsigned int lastActIdx;
+static double reward; 
+static double discount; 
+
 static void initTrack(int index, tTrack* track, void *carHandle, void **carParmHandle, tSituation *s); 
 static void newrace(int index, tCarElt* car, tSituation *s); 
 static void drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo); 
-static void loadSimu(tRmInfo *ReInfo, tCarElt **cars);
 static void endrace(int index, tCarElt *car, tSituation *s);
 static void shutdown(int index);
 static int  InitFuncPt(int index, void *pt); 
@@ -121,75 +110,64 @@ initTrack(int index, tTrack* track, void *carHandle, void **carParmHandle, tSitu
 static void  
 newrace(int index, tCarElt* car, tSituation *s) 
 { 
-    total_tics = 0;
-    prevDist = -1;
+    actionsCount = 0;
+    lastActIdx = actions.size(); // initialized to invalid index
 } 
 
 /* Drive during race. */
 static void
 drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 {
-    total_tics++;
-
     // Constant actions (Cannot be influenced by planner)
     car->_accelCmd = 0.3; // 30% accelerator pedal 
     car->_brakeCmd = 0.0; // no brakes 
     car->_gearCmd = 1; // first gear
-    car->_clutchCmd = 0.0 // no clutch
-
-    static State state{ *s };
-    tSituation sitCopy = new tSituation(*s);
-    loadSimu(ReInfo, sitCopy.cars);
+    car->_clutchCmd = 0.0; // no clutch
 
     if (!simulator) {
-        simulator = new TorcsSimulator{ discreteSteeringActions, *simItf, sitCopy, ReInfo };
+        simulator = new TorcsSimulator{ actions, *s, *ReInfo };
         delete planner;
         planner = new PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>>{ *simulator, PLANNING_TIME, RESAMPLING_TIME, THRESHOLD, EXPLORATION_CTE, PARTICLES };
     }
 
     // Planning
-    
-    Action action = planner->getAction();
-    planner.computeInfo(size,depth);
-    std::cout<<"Size: "<<size<<std::endl;
-    std::cout<<"Depth: "<<depth<<std::endl;
-    planner.moveTo(a0,z1); // TODO: Only execute after first action has been performed
+    if (actionsCount) {
+        // Only update planner after first action
+        unsigned depth,size;
+        planner->computeInfo(size,depth);
+        std::cout<<"Size: "<<size<<std::endl;
+		std::cout<<"Depth: "<<depth<<std::endl;
 
-    // TODO: Calculate and sum up reward
+        State state{ *s };
+        Observation obs = Observation(state);
+        planner->moveTo(lastActIdx, obs);
+
+        // Calculate and sum up reward
+        discount *= simulator->getDiscount();
+        reward  += discount * RewardCalculator::reward(state, actions[lastActIdx]);
+    }
+    unsigned int actionIdx = planner->getAction();
 
     // Steering action
-    car->_steerCmd
-}
+    car->_steerCmd = actions[actionIdx];
 
-static void loadSimu(tRmInfo *ReInfo, tCarElt **cars) {
-    if (!SimpleModList) {
-        const int BUFSIZE = 1024;
-        char buf[BUFSIZE];
-
-        const char* dllname = "simuv2";
-        snprintf(buf, BUFSIZE, "%smodules/simu/copy/%s.%s", GetLibDir (), dllname, DLLEXT);
-        if (GfModLoad(0, buf, &SimpleModList)) throw std::runtime_error("Could not load simu.");
-        SimpleModList->modInfo->fctInit(SimpleModList->modInfo->index, &simItf);
-
-        if (!simItf) simItf = new tSimItf;
-        simItf->init(ReInfo->s->_ncars, ReInfo->track, ReInfo->raceRules.fuelFactor, ReInfo->raceRules.damageFactor);
-    }
+    actionsCount++;
+    lastActIdx = actionIdx;
 }
 
 /* End of the current race */
 static void
 endrace(int index, tCarElt *car, tSituation *s)
 {
-    RESTARTING=0;
+    RESTARTING = 0;
 }
 
 /* Called before the module is unloaded */
 static void
 shutdown(int index)
 {
-    RESTARTING=0;
+    RESTARTING = 0;
     delete planner;
     delete simulator;
-    delete simItf;
 }
 

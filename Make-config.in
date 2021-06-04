@@ -48,17 +48,17 @@ INSTALL_DATA = @INSTALL_DATA@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 
-CFLAGSD = -D_SVID_SOURCE -D_BSD_SOURCE -DSHM -DHAVE_CONFIG_H
+CFLAGSD = -D_DEFAULT_SOURCE -DSHM -DHAVE_CONFIG_H
 CXXFLAGS =  @CXXFLAGS@ @CPPFLAGS@ ${CFLAGSD}
 CFLAGS   =  @CFLAGS@ ${CFLAGSD}
 
 #EXT_LIBS = -lpthread @LIBS@
 EXT_LIBS = @LIBS@
 #LDFLAGS =  @LDFLAGS@ -L${EXPORTBASE}/lib -L/usr/lib -L/usr/local/lib
-LDFLAGS =  -L${EXPORTBASE}/lib @LDFLAGS@ -L/usr/lib
+LDFLAGS =  -L${EXPORTBASE}/lib @LDFLAGS@ -L/usr/lib -L/home/jokke/Repositories/boost_1_76_0/install/lib/ -lboost_thread -lboost_system -rdynamic
 
 #INCFLAGS =  -I${EXPORTBASE}/include -I/usr/include -I/usr/local/include
-INCFLAGS =  -I${EXPORTBASE}/include -I${TORCS_BASE}
+INCFLAGS =  -I${EXPORTBASE}/include -I${TORCS_BASE} -I/home/jokke/Repositories/boost_1_76_0
 
 CPP = @CPP@ @CPPFLAGS@ -M -D__DEPEND__
 

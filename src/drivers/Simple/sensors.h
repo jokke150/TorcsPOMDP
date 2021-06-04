@@ -29,7 +29,6 @@ class SingleSensor {
 
 		void setSingleSensor(float angle, float range);
 		inline float getSingleSensorOut() { return sensor_out; }
-		int getSingleSensorOutDiscrete(const std::vector<float>& bins, int size);
 		void update();
 
 	protected:
@@ -66,8 +65,6 @@ class Sensors {
 		//note:	if the car reach the border the value is 0.
 		//		if the car go behind the track border the value in < 0, don't consider it!
 		float getSensorOut(int sensor_id);
-
-		int getSensorOutDiscrete(int sensor_id, const std::vector<float>& bins, int size);
 
 		void sensors_update();
 

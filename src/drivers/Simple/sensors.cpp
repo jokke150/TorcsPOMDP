@@ -63,24 +63,10 @@ float Sensors::getSensorOut(int sensor_id)
 	return sensor[sensor_id].getSingleSensorOut();
 }
 
-int Sensors::getSensorOutDiscrete(int sensor_id, const std::vector<float>& bins, int size)
-{
-	return sensor[sensor_id].getSingleSensorOutDiscrete(bins, size);
-}
-
 void SingleSensor::setSingleSensor(float angle, float range)
 {
 	sensor_angle = (angle * PI) / 180;
 	sensor_range = range;
-}
-
-int SingleSensor::getSingleSensorOutDiscrete(const std::vector<float>& bins, int size)
-{
-	if (sensor_out < 0)
-		return -1; // car behind track border
-	
-	// TODO: Move out of this file
-	return pomdp::Discretizer::search(bins, 0, size - 1, sensor_out);
 }
 
 void SingleSensor::update()

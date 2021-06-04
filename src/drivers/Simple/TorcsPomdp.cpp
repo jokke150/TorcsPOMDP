@@ -17,9 +17,10 @@ const std::vector<float> Observation::sensorBins = {0.5, 1, 1.5, 2, 2.5, 3.5, 5,
 const int Observation::numAngleBins = 10;
 const std::vector<float> Observation::angleBins = [](){ // Up-to and including angle, from -PI to PI 
     std::vector<float> bins;
+    bins.reserve(numAngleBins);
     int mult = -(numAngleBins / 2) + 1;
-    for (float& bin : bins) {
-            bin = mult * (PI / (numAngleBins / 2));
+    for (int i = 0; i < numAngleBins; i++) {
+            bins.push_back(mult * (PI / (numAngleBins / 2)));
             mult++;
     }
     return bins;
@@ -31,15 +32,22 @@ Observation::Observation(State& s)
     tCarElt *car = s.torcsState.cars[0];
 
     // Get track sensor output
-    // update the value of track sensors only as long as the car is inside the track
+    // set the value of track sensors only as long as the car is inside the track
     if (distToMiddle <= 1.0 && distToMiddle >= -1.0) {
         trackSensors->sensors_update(car);
+        trackSensorData.reserve(numSensors);
         for (int i = 0; i < numSensors; ++i) {
-            trackSensorData.at(i) = trackSensors->getSensorOutDiscrete(i, sensorBins, sensorBins.size());
+            float distance = trackSensors->getSensorOut(i);
+            if (distance < 0) {
+                distance = -1; // car behind track border
+            } else {
+                distance = Discretizer::search(sensorBins, 0, sensorBins.size() - 1, distance);
+            }
+            trackSensorData.push_back(distance);
         }
     } else {
         for (int i = 0; i < numSensors; ++i) {
-            trackSensorData.at(i) = -1;
+            trackSensorData.push_back(-1);
         }
     }
 
@@ -74,9 +82,9 @@ double RewardCalculator::penaltyActionIntensity(const Action& a) {
     return pow(abs(a), PENALTY_INTENSITY_EXP);
 }
 
-int Discretizer::search(const std::vector<float>& vec, int start_idx, int end_idx, float search_val) {
+float Discretizer::search(const std::vector<float>& vec, int start_idx, int end_idx, float search_val) {
 	if( start_idx == end_idx )
-		return vec[start_idx] >= search_val ? start_idx : -1;
+		return vec[start_idx] >= search_val ? vec[start_idx] : -1;
 
 	int mid_idx = start_idx + (end_idx - start_idx) / 2;
 

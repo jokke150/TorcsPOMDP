@@ -89,7 +89,9 @@ typedef struct Situation {
     int			nbPlayers;	/**< number of human player in local (splitted screen) */
     tCarElt		**cars;		/**< list of cars */ 
 
-    Situation() = default;
+    Situation() {
+        cars = nullptr;
+    }
 
     Situation(const Situation& other) : raceInfo{other.raceInfo},
                                         deltaTime{other.deltaTime},
@@ -114,8 +116,10 @@ typedef struct Situation {
         deltaTime = other.deltaTime;
         currentTime = other.currentTime;
         nbPlayers = other.nbPlayers; 
-        delete[] *cars;
-        delete[] cars;
+        if ( cars != nullptr ) {
+            delete[] *cars;
+            delete[] cars;
+        }
         auto nCars = other.raceInfo.ncars;
         auto *carList = new tCarElt[nCars];
         cars = new tCarElt*[nCars];
