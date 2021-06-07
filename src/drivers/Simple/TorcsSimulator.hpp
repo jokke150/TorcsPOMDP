@@ -60,6 +60,7 @@ private:
 	const std::vector<Action>& actions;
 	tRmInfo& raceEngineInfo;
 	InitBelief initialBelief;
+	tSituation lastTorcsState;
 	
 	// Generative model
 	tModList *modList = 0;

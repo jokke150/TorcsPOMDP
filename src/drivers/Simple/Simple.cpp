@@ -54,7 +54,7 @@ static std::vector<Action> actions{-1.0, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.
 static unsigned long actionsCount;
 static unsigned int lastActIdx;
 static double reward; 
-static double discount; 
+static double discount = 1.0;
 
 static void initTrack(int index, tTrack* track, void *carHandle, void **carParmHandle, tSituation *s); 
 static void newrace(int index, tCarElt* car, tSituation *s); 
@@ -142,7 +142,7 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
         Observation obs = Observation(state);
         planner->moveTo(lastActIdx, obs);
 
-        // Calculate and sum up reward
+        // Calculate and sum up reward+
         discount *= simulator->getDiscount();
         reward  += discount * RewardCalculator::reward(state, actions[lastActIdx]);
     }

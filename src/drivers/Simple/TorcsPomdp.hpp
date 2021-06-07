@@ -16,14 +16,14 @@ namespace pomdp
 #define RESAMPLING_TIME 0.1
 #define THRESHOLD 0.01
 #define EXPLORATION_CTE 100
-#define PARTICLES 1000
+#define PARTICLES 1
 #define DISCOUNT 0.99
 
 #define REWARD_CENTER 1
 #define PENALTY_OFF_LANE 10.0
 #define PENALTY_INTENSITY_EXP 2
 
-#define TERMINAL_OFF_LANE_DIST 0.2
+#define TERMINAL_OFF_LANE_DIST 1.2
 
 typedef struct State 
 {   

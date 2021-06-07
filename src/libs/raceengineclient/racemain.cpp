@@ -309,7 +309,7 @@ static int reRaceRealStart(void)
 
 	ReInfo->_reTimeMult = 1.0;
 	ReInfo->_reLastTime = -1.0;
-	ReInfo->s->currentTime = -2.0;
+	ReInfo->s->currentTime = 0; // avoid wasting 3 seconds, time initialized on 0 - race begins immediately
 	ReInfo->s->deltaTime = RCM_MAX_DT_SIMU;
 
 	ReInfo->s->_raceState = RM_RACE_STARTING;
