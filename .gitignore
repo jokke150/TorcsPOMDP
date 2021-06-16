@@ -8,5 +8,4 @@ export/*
 *.log
 *.status
 *.a
-.vscode
 OldDrivers

@@ -320,7 +320,7 @@ double PomcpPlanner<S,Z,A,B>::simulate(const S& state, Node<S,Z,B>* node, double
 			simulator.getValidActions(state,node->validActions);
 			node->actionData.resize(node->validActions.size());
 		}
-		return rollout(state, depth,depthLevel);
+		return rollout(state, depth, depthLevel);
 	}
 	
 	unsigned validActionIndex  = simulator.getNumActions() ,actionIndex = simulator.getNumActions();
@@ -394,7 +394,7 @@ void PomcpPlanner<S,Z,A,B>::search()
 		utils::Timer timer;
 		do {
 			simulate(root->belief.sample(),root,1.0,0);
-		} while (timer.elapsed()<planningTimeout);
+		} while (timer.elapsed() < planningTimeout);
 	}
 	
 }
@@ -473,23 +473,6 @@ template<typename S, typename Z, typename A, typename B>
 inline
 bool PomcpPlanner<S,Z,A,B>::moveTo(unsigned actionIndex, const Z& observation)
 {
-	/*bool reseted;
-	Edge<Z> edge(actionIndex,observation);
-	auto it = root->childs.find(edge);
-	if (it == root->childs.end() ||
-		it->second->belief.size()==0) {
-		reset();
-		reseted=true;
-	} else {
-		Node<S,Z,B>* nextRoot = it->second;
-		boost::thread freeMemThread(eraseNodeAndChilds,edge,root);
-		root = nextRoot;
-		currentAction = simulator.getNumActions();
-		simulator.cleanup();
-		reseted=false;
-	}
-	return reseted;*/
-
 	bool reseted;
 	Edge<Z> edge(actionIndex,observation);
 	auto it = root->childs.find(edge);

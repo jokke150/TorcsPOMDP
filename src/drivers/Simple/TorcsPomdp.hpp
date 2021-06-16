@@ -12,12 +12,12 @@ namespace pomdp
 
 // HYPERPARAMETERS
 // TODO: Tune
-#define PLANNING_TIME 0.9
-#define RESAMPLING_TIME 0.1
+#define PLANNING_TIME 10
+#define RESAMPLING_TIME 10
 #define THRESHOLD 0.01
 #define EXPLORATION_CTE 100
 #define PARTICLES 1
-#define DISCOUNT 0.99
+#define DISCOUNT 0.9999
 
 #define REWARD_CENTER 1
 #define PENALTY_OFF_LANE 10.0
@@ -28,6 +28,8 @@ namespace pomdp
 typedef struct State 
 {   
     tSituation torcsState;
+    DriverModelState modelState;
+    bool isTerminal();
 } State;
 
 class Observation
@@ -37,19 +39,19 @@ public:
     Observation(State& s);
     bool operator==(Observation const& other) const;
 
-    std::vector<float> trackSensorData;
+    // std::vector<float> trackSensorData;
     float angle;
-    float distToMiddle;
+    // float distToMiddle;
 
 private:
-    static const int numSensors;
-    static const float sensorRange; 
-    static const std::vector<float> trackSensAngle;
-    static Sensors *trackSensors;
-    static const std::vector<float> sensorBins;
+    // static const int numSensors;
+    //static const float sensorRange; 
+    // static const std::vector<float> trackSensAngle;
+    // static Sensors *trackSensors;
+    // static const std::vector<float> sensorBins;
     static const int numAngleBins;
     static const std::vector<float> angleBins;
-    static const std::vector<float> middleBins;
+    // static const std::vector<float> middleBins;
 };
 
 }
@@ -60,9 +62,9 @@ namespace std {
     size_t operator()(const pomdp::Observation & o) const
     {
         std::size_t seed = 0;
-        boost::hash_combine(seed, o.trackSensorData);
+        // boost::hash_combine(seed, o.trackSensorData);
         boost::hash_combine(seed, o.angle);
-        boost::hash_combine(seed, o.distToMiddle);
+        // boost::hash_combine(seed, o.distToMiddle);
         return seed;
     }
   };

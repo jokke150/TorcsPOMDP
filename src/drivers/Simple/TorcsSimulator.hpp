@@ -6,6 +6,7 @@
 #include "Random.hpp"
 #include "Pomcp.hpp"
 #include "TorcsPomdp.hpp"
+#include "DriverModel.hpp"
 
 #include <raceman.h>
 #include <car.h> 
@@ -60,7 +61,6 @@ private:
 	const std::vector<Action>& actions;
 	tRmInfo& raceEngineInfo;
 	InitBelief initialBelief;
-	tSituation lastTorcsState;
 	
 	// Generative model
 	tModList *modList = 0;
@@ -73,6 +73,8 @@ InitBelief::InitBelief(const tSituation& initTorcsState)
 {
 	// TODO: Account for possible inner states of driver model
 	State initState = { initTorcsState };
+	initState.torcsState.currentTime += RCM_MAX_DT_ROBOTS; // Is initially set wrong.
+	initState.torcsState.deltaTime = RCM_MAX_DT_ROBOTS; // Is initially set wrong.
 	possibleStates.push_back(initState);
 }
 
@@ -107,14 +109,33 @@ inline
 bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& nextState, Observation& observation, double& reward,unsigned depth) const
 {
 	const Action& action = getAction(actionIndex);
-	reward = RewardCalculator::reward(state, action);
+	reward = RewardCalculator::reward(state, action); // TODO: Is this placed here correctly?
 	nextState = State{ state };
 	tCarElt* car = nextState.torcsState.cars[0];
+	
+	// Get driver's action
+	float angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
+    NORM_PI_PI(angle); // normalize the angle between -PI and + PI
+	TorcsState torcsState{angle, nextState.torcsState.currentTime, car->_steerLock};
+	DriverModel::updateInPlace(torcsState, nextState.modelState);
+
+	car->_steerCmd = actions[actionIndex] + nextState.modelState.lastAction;
+
+	// For different RCM_MAX_DT_ROBOTS and RCM_MAX_DT_SIMU update intervals, this avoids floating point error accumulation. 
+	// However, this implementation is very inefficient. 
+	// Different RCM_MAX_DT_ROBOTS and RCM_MAX_DT_SIMU update intervals should therefore be avoided.
 	genModel.config(car, &raceEngineInfo);
-	genModel.update(&nextState.torcsState, RCM_MAX_DT_SIMU, -1);
+	double elapsed = 0;
+	tSituation* situation = &nextState.torcsState;
+	while (elapsed < RCM_MAX_DT_ROBOTS) {
+		genModel.update(situation, RCM_MAX_DT_SIMU, -1);
+		situation->currentTime += elapsed;
+		situation->deltaTime = elapsed;
+		elapsed += RCM_MAX_DT_SIMU;
+	}
 	observation = Observation{ nextState };
-    double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
-	return absDistToMiddle >= TERMINAL_OFF_LANE_DIST;
+	
+    return nextState.isTerminal();
 }
 
 inline
