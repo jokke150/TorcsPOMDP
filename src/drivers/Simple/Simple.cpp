@@ -43,14 +43,14 @@ using namespace pomdp;
 
 static tTrack *curTrack;
 
-#define RACE_RESTART 1
-static int RESTARTING;
-
 // POMCP
-static TorcsSimulator *simulator = nullptr;
-static PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>> *planner = nullptr;
+static TorcsSimulator* simulator = nullptr;
+static PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>>* planner = nullptr;
 
-static std::vector<Action> actions{-1.0, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1.0};
+static DriverModel* driverModel = nullptr;
+
+static std::vector<Action> actions{-2.0, -1.8, - 1.6, -1.4, -1.2, -1.0, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0};
+static unsigned int runs = 0;
 static unsigned long actionsCount;
 static unsigned int lastActIdx;
 static double reward; 
@@ -112,6 +112,7 @@ newrace(int index, tCarElt* car, tSituation *s)
 { 
     actionsCount = 0;
     lastActIdx = actions.size(); // initialized to invalid index
+    driverModel = new DriverModel();
 } 
 
 /* Drive during race. */
@@ -130,15 +131,29 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
         planner = new PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>>{ *simulator, PLANNING_TIME, RESAMPLING_TIME, THRESHOLD, EXPLORATION_CTE, PARTICLES };
     }
 
+    // Restart race and start next run if terminal state is reached
+    State state{ *s };
+    if (state.isTerminal()) {
+        runs++;
+        double avgReward = reward / runs;
+        std::cout<<"Restarting after "<<actionsCount<<" actions."<<std::endl;
+        std::cout<<"Average reward after "<<runs<<" runs: "<<avgReward<<std::endl;
+        
+        car->RESET = 1;
+        car->RESTART = 1;
+        planner->reset();
+        actionsCount = 0;
+    }
+
     // Planning
     if (actionsCount) {
         // Only update planner after first action
         unsigned depth,size;
+
         planner->computeInfo(size,depth);
         std::cout<<"Size: "<<size<<std::endl;
 		std::cout<<"Depth: "<<depth<<std::endl;
 
-        State state{ *s };
         Observation obs = Observation(state);
         planner->moveTo(lastActIdx, obs);
 
@@ -148,7 +163,10 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
     }
     unsigned int actionIdx = planner->getAction();
 
-    // Steering action
+    // Determine driver's action
+    driverModel.
+
+    // Combine steering actions
     car->_steerCmd = actions[actionIdx];
 
     actionsCount++;
@@ -159,15 +177,14 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 static void
 endrace(int index, tCarElt *car, tSituation *s)
 {
-    RESTARTING = 0;
 }
 
 /* Called before the module is unloaded */
 static void
 shutdown(int index)
 {
-    RESTARTING = 0;
     delete planner;
     delete simulator;
+    delete driverModel;
 }
 
