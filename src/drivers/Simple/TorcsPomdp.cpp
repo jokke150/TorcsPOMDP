@@ -1,7 +1,12 @@
 #include "TorcsPomdp.hpp"
+#include "Discretizer.hpp"
 
 namespace pomdp
 {
+
+State::State() {}
+State::State(const State& other) { torcsState = tSituation{other.torcsState}; modelState = DriverModelState{other.modelState}; }
+State::State(tSituation torcsState, DriverModelState modelState) : torcsState{torcsState}, modelState{modelState} {}
 
 bool State::isTerminal() {
     tCarElt* car = torcsState.cars[0];
@@ -64,7 +69,7 @@ Observation::Observation(State& s)
     // Compute the car angle wrt. the track axis
     angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
     NORM_PI_PI(angle); // normalize the angle between -PI and + PI
-    angle = Discretizer::search(angleBins, 0, angleBins.size() - 1, angle);
+    angle = utils::Discretizer::discretize(angleBins, angle);
 }
 
 bool Observation::operator==(Observation const& other) const
@@ -87,18 +92,6 @@ double RewardCalculator::rewardPosition(const State& s) {
 
 double RewardCalculator::penaltyActionIntensity(const Action& a) {
     return pow(abs(a), PENALTY_INTENSITY_EXP);
-}
-
-float Discretizer::search(const std::vector<float>& vec, int start_idx, int end_idx, float search_val) {
-	if( start_idx == end_idx )
-		return vec[start_idx] >= search_val ? vec[start_idx] : -1;
-
-	int mid_idx = start_idx + (end_idx - start_idx) / 2;
-
-	if(search_val <= vec[mid_idx])
-		return search(vec, start_idx, mid_idx, search_val);
-
-	return search(vec, mid_idx+1, end_idx, search_val);
 }
 
 }

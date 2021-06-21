@@ -1,35 +1,21 @@
 #include <vector>
-
 #include <boost/functional/hash.hpp>
-#include "MonteCarloSimulator.hpp"
-
-#include "Random.hpp"
-#include "Pomcp.hpp"
-#include "TorcsPomdp.hpp"
-#include "DriverModel.hpp"
 
 #include <raceman.h>
 #include <car.h> 
+
+#include "MonteCarloSimulator.hpp"
+#include "Random.hpp"
+#include "Pomcp.hpp"
+#include "TorcsPomdp.hpp"
+#include "Discretizer.hpp"
+
+
 
 using namespace pomcp;
 
 namespace pomdp
 {
-
-/**
- * class InitBelief
- *
- * A class representing the initial belief.
- */
-class InitBelief
-{
-	public:
-		InitBelief(const tSituation& initTorcsState);
-		~InitBelief() {}
-		State sample() const;
-	private:
-		std::vector<State> possibleStates;
-};
 
 /**
  * class TorcsSimulator
@@ -46,7 +32,7 @@ public:
 	* @param initTorcsState: Reference to the initial torcs state
     * Create a new simulator
     */
-	TorcsSimulator(const std::vector<Action>& actions, const tSituation& initTorcsState, tRmInfo& raceEngineInfo);
+	TorcsSimulator(const std::vector<Action>& actions, tSituation initTorcsState, tRmInfo& raceEngineInfo);
 	virtual ~TorcsSimulator();
 	virtual double getDiscount() const {return DISCOUNT;}
 	virtual State& sampleInitialState(State& state) const;
@@ -56,11 +42,10 @@ public:
 	virtual const Action& getAction(unsigned actionIndex) const {return actions[actionIndex];}
 	virtual bool allActionsAreValid(const State& state) const {return true;}
 	virtual bool isValidAction(const State& state, unsigned actionIndex) const {return true;}
-	virtual void setInitialBelief(const tSituation& initTorcsState);
 private:
 	const std::vector<Action>& actions;
 	tRmInfo& raceEngineInfo;
-	InitBelief initialBelief;
+	tSituation initTorcsState;
 	
 	// Generative model
 	tModList *modList = 0;
@@ -69,28 +54,8 @@ private:
 };
 
 inline
-InitBelief::InitBelief(const tSituation& initTorcsState)
-{
-	// TODO: Account for possible inner states of driver model
-	State initState = { initTorcsState };
-	initState.torcsState.currentTime += RCM_MAX_DT_ROBOTS; // Is initially set wrong.
-	initState.torcsState.deltaTime = RCM_MAX_DT_ROBOTS; // Is initially set wrong.
-	possibleStates.push_back(initState);
-}
-
-/**
-* Selects a state from a uniform distribution over possible initial states
-*/
-inline
-State InitBelief::sample() const
-{
-	State sample = possibleStates[utils::RANDOM(possibleStates.size())];
-	return sample;
-}
-
-inline
-TorcsSimulator::TorcsSimulator(const std::vector<Action>& actions, const tSituation& initTorcsState, tRmInfo& raceEngineInfo) 
-	: actions{actions}, raceEngineInfo{raceEngineInfo}, initialBelief{InitBelief(initTorcsState)} 
+TorcsSimulator::TorcsSimulator(const std::vector<Action>& actions, tSituation initTorcsState, tRmInfo& raceEngineInfo) 
+	: actions{actions}, raceEngineInfo{raceEngineInfo}, initTorcsState{initTorcsState} 
 {
 	loadGenModel();
 }
@@ -101,25 +66,32 @@ TorcsSimulator::~TorcsSimulator() {}
 inline
 State& TorcsSimulator::sampleInitialState(State& state) const
 {
-	state = initialBelief.sample();
+	DriverModelState modelState = DriverModel::sampleState();
+	state = State{ initTorcsState, modelState };
+	state.torcsState.currentTime += RCM_MAX_DT_ROBOTS; // Is initially set wrong.
+	state.torcsState.deltaTime = RCM_MAX_DT_ROBOTS; // Is initially set wrong.
 	return state;	
 }
 
 inline
 bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& nextState, Observation& observation, double& reward,unsigned depth) const
 {
-	const Action& action = getAction(actionIndex);
-	reward = RewardCalculator::reward(state, action); // TODO: Is this placed here correctly?
+	const Action& agentAction = getAction(actionIndex);
+	
+	reward = RewardCalculator::reward(state, agentAction); // TODO: Is this placed here correctly?
+	
 	nextState = State{ state };
 	tCarElt* car = nextState.torcsState.cars[0];
 	
 	// Get driver's action
 	float angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
     NORM_PI_PI(angle); // normalize the angle between -PI and + PI
-	TorcsState torcsState{angle, nextState.torcsState.currentTime, car->_steerLock};
+	TorcsState torcsState{angle, nextState.torcsState.currentTime, (float) car->_steerLock};
 	DriverModel::updateInPlace(torcsState, nextState.modelState);
+	float driverAction = utils::Discretizer::discretize(actions, nextState.modelState.action);
 
-	car->_steerCmd = actions[actionIndex] + nextState.modelState.lastAction;
+	// Combine steering actions
+    car->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction) ;
 
 	// For different RCM_MAX_DT_ROBOTS and RCM_MAX_DT_SIMU update intervals, this avoids floating point error accumulation. 
 	// However, this implementation is very inefficient. 
@@ -144,12 +116,6 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 	Observation observation;
 	bool stop = simulate(state, actionIndex, nextState, observation, reward, depth);
 	return stop;
-}
-
-inline 
-void TorcsSimulator::setInitialBelief(const tSituation& initTorcsState) 
-{
-	initialBelief = { initTorcsState };
 }
 
 inline

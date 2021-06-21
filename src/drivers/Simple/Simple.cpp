@@ -49,7 +49,7 @@ static PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>>* pla
 
 static DriverModel* driverModel = nullptr;
 
-static std::vector<Action> actions{-2.0, -1.8, - 1.6, -1.4, -1.2, -1.0, -0.8, -0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0};
+static std::vector<Action> actions{-1.0, -0.5, 0, 0.5, 1.0};
 static unsigned int runs = 0;
 static unsigned long actionsCount;
 static unsigned int lastActIdx;
@@ -112,7 +112,7 @@ newrace(int index, tCarElt* car, tSituation *s)
 { 
     actionsCount = 0;
     lastActIdx = actions.size(); // initialized to invalid index
-    driverModel = new DriverModel();
+    driverModel = new DriverModel(); // TODO: Randomize distraction / attentiveness in initial state?
 } 
 
 /* Drive during race. */
@@ -132,7 +132,7 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
     }
 
     // Restart race and start next run if terminal state is reached
-    State state{ *s };
+    State state{ *s, driverModel->getState() };
     if (state.isTerminal()) {
         runs++;
         double avgReward = reward / runs;
@@ -161,16 +161,19 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
         discount *= simulator->getDiscount();
         reward  += discount * RewardCalculator::reward(state, actions[lastActIdx]);
     }
-    unsigned int actionIdx = planner->getAction();
+    int agentActionIdx = planner->getAction();
+    float agentAction = actions[agentActionIdx];
 
-    // Determine driver's action
-    driverModel.
+    // Determine driver's action (discretized)
+    TorcsState torcsState{ *s };
+    driverModel->update(torcsState);
+    float driverAction = utils::Discretizer::discretize(actions, driverModel->getAction());
 
     // Combine steering actions
-    car->_steerCmd = actions[actionIdx];
+    car->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction) ;
 
     actionsCount++;
-    lastActIdx = actionIdx;
+    lastActIdx = agentActionIdx;
 }
 
 /* End of the current race */

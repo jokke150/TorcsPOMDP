@@ -7,6 +7,8 @@
 
 #include "sensors.h"
 
+#include "DriverModel.hpp"
+
 namespace pomdp
 {
 
@@ -27,9 +29,13 @@ namespace pomdp
 
 typedef struct State 
 {   
+    State();
+    State(const State& other);
+    State(tSituation torcsState, DriverModelState modelState);
+    bool isTerminal();
+
     tSituation torcsState;
     DriverModelState modelState;
-    bool isTerminal();
 } State;
 
 class Observation
@@ -81,11 +87,6 @@ public:
 private:
     static double rewardPosition(const State& s);
     static double penaltyActionIntensity(const Action& a);
-};
-
-class Discretizer {
-	public:
-		static float search(const std::vector<float>& bins, int start_idx, int end_idx, float search_val);
 };
 
 }

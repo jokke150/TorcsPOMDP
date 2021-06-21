@@ -18,7 +18,7 @@
 #
 ##############################################################################
 
-prefix=/usr/local
+prefix=/home/jokke/Repositories/TorcsPOMDP/build
 exec_prefix=${prefix}
 
 BINDIR=${exec_prefix}/bin

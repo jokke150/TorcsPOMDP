@@ -5,17 +5,17 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "g++ build and debug active file",
+            "name": "debug",
             "type": "cppdbg",
             "request": "launch",
-            "program": "/usr/local/lib/torcs/torcs-bin",
-            "args": ["-L", "/usr/local/lib/torcs", "-D", "/usr/local/share/games/torcs"],
+            "program": "${workspaceFolder}/build//lib/torcs/torcs-bin",
+            "args": ["-L", "${workspaceFolder}/build/lib/torcs", "-D", "${workspaceFolder}/build/share/games/torcs"],
             "stopAtEntry": false,
-            "cwd": "/usr/local/share/games/torcs",
+            "cwd": "${workspaceFolder}/build/share/games/torcs",
             "environment": [
                 {
                     "name": "LD_LIBRARY_PATH",
-                    "value": "/usr/local/lib/torcs/lib"
+                    "value": "${workspaceFolder}/build/lib/torcs/lib"
                 }
             ],
             "externalConsole": false,
@@ -29,7 +29,7 @@
             ],
             // "preLaunchTask": "g++ build active file",
             "miDebuggerPath": "/usr/bin/gdb",
-            "miDebuggerArgs": "-l /home/jokke/.torcs",
+            //"miDebuggerArgs": "-l /home/jokke/.torcs",
             "logging": { "trace": true, "traceResponse": true }
         }
     ]

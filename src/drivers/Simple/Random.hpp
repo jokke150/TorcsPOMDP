@@ -77,6 +77,17 @@ public:
    	 */
 	double operator()() {return uniformDist(gen);}
 	/**
+   	 * Get a random real number -size <= x <= size following an uniform distribution
+	 * @param size: the upper bound and lower bound (negated) for the number (including)
+	 * @return: A random real number
+   	 */
+	double getSigned(double loBound, double upBound);
+	/**
+   	 * Get a random boolean
+	 * @return: bool
+   	 */
+	bool getBool();
+	/**
    	 * Get a random real number following a normal distribution
 	 * @param mean: mean of the normal distribution
 	 * @param stddev: standard deviation of the normal distribution
@@ -100,6 +111,23 @@ unsigned RandomNumberGenerator::operator()(unsigned size)
 	return distribution(gen);
 }
 
+inline 
+double RandomNumberGenerator::getSigned(double loBound, double upBound) 
+{
+	#ifdef _POMCP_DEBUG_
+	assert(size>0);	
+	#endif
+	std::uniform_real_distribution<double> distribution(loBound, upBound);
+	return distribution(gen);
+}
+
+inline 
+bool RandomNumberGenerator::getBool() 
+{
+	return (bool) RandomNumberGenerator::operator()(2);
+}
+
+
 inline
 double RandomNumberGenerator::operator()(double mean, double stddev)
 {
@@ -108,4 +136,5 @@ double RandomNumberGenerator::operator()(double mean, double stddev)
 }
 
 }
+
 #endif
