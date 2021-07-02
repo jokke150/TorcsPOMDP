@@ -14,12 +14,12 @@ namespace pomdp
 
 // HYPERPARAMETERS
 // TODO: Tune
-#define PLANNING_TIME 10
-#define RESAMPLING_TIME 10
+#define PLANNING_TIME 5
+#define RESAMPLING_TIME 1
 #define THRESHOLD 0.01
 #define EXPLORATION_CTE 100
-#define PARTICLES 1
-#define DISCOUNT 0.9999
+#define PARTICLES 1000
+#define DISCOUNT 0.95
 
 #define REWARD_CENTER 1
 #define PENALTY_OFF_LANE 10.0
@@ -42,12 +42,14 @@ class Observation
 {   
 public:
     Observation() = default;
-    Observation(State& s);
+    Observation(State& s, float lastDriverAction);
     bool operator==(Observation const& other) const;
 
     // std::vector<float> trackSensorData;
     float angle;
-    // float distToMiddle;
+    float distToMiddle;
+    float distToStart;
+    float lastDriverAction;
 
 private:
     // static const int numSensors;
@@ -57,7 +59,9 @@ private:
     // static const std::vector<float> sensorBins;
     static const int numAngleBins;
     static const std::vector<float> angleBins;
-    // static const std::vector<float> middleBins;
+    static const int numMiddleBins;
+    static const std::vector<float> middleBins;
+    static const float startBinSize;
 };
 
 }
@@ -71,6 +75,8 @@ namespace std {
         // boost::hash_combine(seed, o.trackSensorData);
         boost::hash_combine(seed, o.angle);
         // boost::hash_combine(seed, o.distToMiddle);
+        // boost::hash_combine(seed, o.distToStart);
+        // boost::hash_combine(seed, o.lastDriverAction);
         return seed;
     }
   };

@@ -42,6 +42,8 @@ public:
 	virtual const Action& getAction(unsigned actionIndex) const {return actions[actionIndex];}
 	virtual bool allActionsAreValid(const State& state) const {return true;}
 	virtual bool isValidAction(const State& state, unsigned actionIndex) const {return true;}
+
+	void test(const State& origState) const; // TODO: Remove
 private:
 	const std::vector<Action>& actions;
 	tRmInfo& raceEngineInfo;
@@ -69,13 +71,16 @@ State& TorcsSimulator::sampleInitialState(State& state) const
 	DriverModelState modelState = DriverModel::sampleState();
 	state = State{ initTorcsState, modelState };
 	state.torcsState.currentTime += RCM_MAX_DT_ROBOTS; // Is initially set wrong.
-	state.torcsState.deltaTime = RCM_MAX_DT_ROBOTS; // Is initially set wrong.
+	state.torcsState.deltaTime = RCM_MAX_DT_SIMU; // Is initially set wrong.
 	return state;	
 }
 
 inline
 bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& nextState, Observation& observation, double& reward,unsigned depth) const
 {
+	// test(state);
+	
+	
 	const Action& agentAction = getAction(actionIndex);
 	
 	reward = RewardCalculator::reward(state, agentAction); // TODO: Is this placed here correctly?
@@ -84,30 +89,73 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 	tCarElt* car = nextState.torcsState.cars[0];
 	
 	// Get driver's action
-	float angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
-    NORM_PI_PI(angle); // normalize the angle between -PI and + PI
-	TorcsState torcsState{angle, nextState.torcsState.currentTime, (float) car->_steerLock};
+	TorcsState torcsState{ nextState.torcsState };
 	DriverModel::updateInPlace(torcsState, nextState.modelState);
 	float driverAction = utils::Discretizer::discretize(actions, nextState.modelState.action);
 
 	// Combine steering actions
     car->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction) ;
 
-	// For different RCM_MAX_DT_ROBOTS and RCM_MAX_DT_SIMU update intervals, this avoids floating point error accumulation. 
-	// However, this implementation is very inefficient. 
-	// Different RCM_MAX_DT_ROBOTS and RCM_MAX_DT_SIMU update intervals should therefore be avoided.
 	genModel.config(car, &raceEngineInfo);
 	double elapsed = 0;
 	tSituation* situation = &nextState.torcsState;
+	situation->deltaTime = RCM_MAX_DT_SIMU;
 	while (elapsed < RCM_MAX_DT_ROBOTS) {
 		genModel.update(situation, RCM_MAX_DT_SIMU, -1);
-		situation->currentTime += elapsed;
-		situation->deltaTime = elapsed;
+		situation->currentTime += RCM_MAX_DT_SIMU;
 		elapsed += RCM_MAX_DT_SIMU;
 	}
-	observation = Observation{ nextState };
-	
+	observation = Observation{ nextState, driverAction};
     return nextState.isTerminal();
+}
+
+inline
+void TorcsSimulator::test(const State& origState) const {
+	State nextState = State{ origState };
+	for (int i = 0; i < 1000; i++) {
+		tCarElt* car = nextState.torcsState.cars[0];
+		const float SC = 1.0;
+		float angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
+		NORM_PI_PI(angle); // normalize the angle between -PI and + PI
+		angle -= SC * car->_trkPos.toMiddle / car->_trkPos.seg->width;
+		float steerLock = car->_steerLock;
+    	car->_steerCmd = angle / steerLock;
+
+		genModel.config(car, &raceEngineInfo);
+		double elapsed = 0;
+		tSituation* situation = &nextState.torcsState;
+		situation->deltaTime = RCM_MAX_DT_SIMU;
+		while (elapsed < RCM_MAX_DT_ROBOTS) {
+			genModel.update(situation, RCM_MAX_DT_SIMU, -1);
+			situation->currentTime += RCM_MAX_DT_SIMU;
+			elapsed += RCM_MAX_DT_SIMU;
+		}
+		nextState = State{ nextState };
+	}
+
+	State nextState1 = State{ origState };
+	tCarElt* car = nextState1.torcsState.cars[0];
+	genModel.config(nextState1.torcsState.cars[0], &raceEngineInfo);
+	for (int i = 0; i < 1000; i++) {
+		const float SC = 1.0;
+		float angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
+		NORM_PI_PI(angle); // normalize the angle between -PI and + PI
+		angle -= SC * car->_trkPos.toMiddle / car->_trkPos.seg->width;
+		float steerLock = car->_steerLock;
+    	car->_steerCmd = angle / steerLock;
+
+		genModel.config(car, &raceEngineInfo);
+		double elapsed = 0;
+		tSituation* situation = &nextState1.torcsState;
+		situation->deltaTime = RCM_MAX_DT_SIMU;
+		while (elapsed < RCM_MAX_DT_ROBOTS) {
+			genModel.update(situation, RCM_MAX_DT_SIMU, -1);
+			situation->currentTime += RCM_MAX_DT_SIMU;
+			elapsed += RCM_MAX_DT_SIMU;
+		}		
+	}
+
+	int x = 1;
 }
 
 inline

@@ -356,9 +356,9 @@ double PomcpPlanner<S,Z,A,B>::simulate(const S& state, Node<S,Z,B>* node, double
 	bool stop  = simulator.simulate(state, actionIndex, nextState, observation, reward, depthLevel);
 	
 	if (!stop) {
-		Node<S,Z,B>* nextNode = getNode(node,actionIndex,observation);
+		Node<S,Z,B>* nextNode = getNode(node, actionIndex, observation);
 		nextNode->belief.add(nextState);
-		reward += simulator.getDiscount() * simulate(nextState, nextNode , depth*simulator.getDiscount(),depthLevel+1);
+		reward += simulator.getDiscount() * simulate(nextState, nextNode , depth * simulator.getDiscount(), depthLevel + 1);
 	} 
 	node->counter++;
 	node->actionData[validActionIndex].counter++;
@@ -376,7 +376,7 @@ void PomcpPlanner<S,Z,A,B>::generateInitialBelief()
 	do {
 		simulator.sampleInitialState(s0);
 		root->belief.add(s0);
-	} while(timer.elapsed() < resamplingTimeout && root->belief.size()<numParticlesInitialBelief);	
+	} while(timer.elapsed() < resamplingTimeout && root->belief.size() < numParticlesInitialBelief);	
 }
 
 template<typename S, typename Z, typename A, typename B>
@@ -386,15 +386,34 @@ void PomcpPlanner<S,Z,A,B>::search()
 	if (root->belief.empty()) {
 		S s0;
 		utils::Timer timer;
+		auto minParticles = 0;
+		#ifdef _POMCP_DEBUG_
+			// minParticles = numParticlesInitialBelief; // Ensures a minimum amount of particles is added when debugging. Otherwise, the time runs out fast.
+		#endif
 		do {
 			simulate(simulator.sampleInitialState(s0),root,1.0,0);
 			root->belief.add(s0);
-		} while (timer.elapsed()< (planningTimeout)); 
+		} while (root->belief.size() < minParticles || timer.elapsed() < (planningTimeout)); 
 	} else {
 		utils::Timer timer;
+		auto nodesAdded = 0;
+		auto minNodes = 0;
+		#ifdef _POMCP_DEBUG_
+			// minNodes = 100; // Ensures a minimum amount of nodes are added when debugging. Otherwise, the time runs out fast.
+			// unsigned oldSize = 0;
+			// unsigned depth = 0;
+			// computeInfo(oldSize, depth);
+		#endif
 		do {
 			simulate(root->belief.sample(),root,1.0,0);
-		} while (timer.elapsed() < planningTimeout);
+			#ifdef _POMCP_DEBUG_
+				// unsigned size = 0;
+				// depth = 0;
+				// computeInfo(size, depth);
+				// nodesAdded += size - oldSize;
+				// oldSize = size;
+			#endif
+		} while (nodesAdded < minNodes || timer.elapsed() < planningTimeout);
 	}
 	
 }
@@ -499,7 +518,6 @@ bool PomcpPlanner<S,Z,A,B>::moveTo(unsigned actionIndex, const Z& observation)
 			if (observation == sObservation) {
 				it->second->belief.add(nextState);
 			}
-
 		} while (timer.elapsed()<resamplingTimeout);
 		Node<S,Z,B>* nextRoot = it->second;
 		boost::thread freeMemThread(eraseNodeAndChilds,edge,root);

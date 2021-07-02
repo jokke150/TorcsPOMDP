@@ -53,8 +53,14 @@ static std::vector<Action> actions{-1.0, -0.5, 0, 0.5, 1.0};
 static unsigned int runs = 0;
 static unsigned long actionsCount;
 static unsigned int lastActIdx;
+static float lastDriverAction;
+static float lastOptimalAction;
 static double reward; 
 static double discount = 1.0;
+
+static int numCallsTargetSpeed;
+static const int targetSpeed = 17;
+static const int goalCallsTargetSpeed = 10;
 
 static void initTrack(int index, tTrack* track, void *carHandle, void **carParmHandle, tSituation *s); 
 static void newrace(int index, tCarElt* car, tSituation *s); 
@@ -62,6 +68,8 @@ static void drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo);
 static void endrace(int index, tCarElt *car, tSituation *s);
 static void shutdown(int index);
 static int  InitFuncPt(int index, void *pt); 
+
+static void restart(tCarElt* car); 
 
 
 /* 
@@ -111,7 +119,7 @@ static void
 newrace(int index, tCarElt* car, tSituation *s) 
 { 
     actionsCount = 0;
-    lastActIdx = actions.size(); // initialized to invalid index
+    numCallsTargetSpeed = 0;
     driverModel = new DriverModel(); // TODO: Randomize distraction / attentiveness in initial state?
 } 
 
@@ -119,11 +127,32 @@ newrace(int index, tCarElt* car, tSituation *s)
 static void
 drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 {
+    memset(&car->ctrl, 0, sizeof(tCarCtrl));
+
     // Constant actions (Cannot be influenced by planner)
     car->_accelCmd = 0.3; // 30% accelerator pedal 
     car->_brakeCmd = 0.0; // no brakes 
     car->_gearCmd = 1; // first gear
     car->_clutchCmd = 0.0; // no clutch
+
+    TorcsState torcsState{ *s };
+
+    // We want a constant target speed over a number of calls before starting the planning
+    float speed = car->pub.speed;
+    if ((int) speed == targetSpeed) {
+        numCallsTargetSpeed++;
+    } else {
+        numCallsTargetSpeed = 0;
+    }
+    if (numCallsTargetSpeed < goalCallsTargetSpeed) {
+        if (actionsCount == 0) {
+            car->_steerCmd = torcsState.angle / torcsState.steerLock; // automatically steer to middle
+            return;
+        }
+        else {
+            restart(car);
+        }
+    }
 
     if (!simulator) {
         simulator = new TorcsSimulator{ actions, *s, *ReInfo };
@@ -134,15 +163,7 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
     // Restart race and start next run if terminal state is reached
     State state{ *s, driverModel->getState() };
     if (state.isTerminal()) {
-        runs++;
-        double avgReward = reward / runs;
-        std::cout<<"Restarting after "<<actionsCount<<" actions."<<std::endl;
-        std::cout<<"Average reward after "<<runs<<" runs: "<<avgReward<<std::endl;
-        
-        car->RESET = 1;
-        car->RESTART = 1;
-        planner->reset();
-        actionsCount = 0;
+        restart(car);
     }
 
     // Planning
@@ -151,10 +172,17 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
         unsigned depth,size;
 
         planner->computeInfo(size,depth);
+        std::cout<<"__________________________________"<<std::endl;
+        std::cout<<"Count: "<<actionsCount<<std::endl;
         std::cout<<"Size: "<<size<<std::endl;
 		std::cout<<"Depth: "<<depth<<std::endl;
+        std::cout<<"Reward: "<<reward<<std::endl;
+        double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
+        std::cout<<"Distance: "<<absDistToMiddle<<std::endl;
+        std::cout<<"Optimal: "<<lastOptimalAction<<std::endl;
+        std::cout<<"Action: "<<actions[lastActIdx]<<std::endl;
 
-        Observation obs = Observation(state);
+        Observation obs = Observation(state, lastDriverAction);
         planner->moveTo(lastActIdx, obs);
 
         // Calculate and sum up reward+
@@ -164,17 +192,35 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
     int agentActionIdx = planner->getAction();
     float agentAction = actions[agentActionIdx];
 
-    // Determine driver's action (discretized)
-    TorcsState torcsState{ *s };
+    // // Determine driver's action (discretized)
     driverModel->update(torcsState);
     float driverAction = utils::Discretizer::discretize(actions, driverModel->getAction());
 
     // Combine steering actions
-    car->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction) ;
+    // car->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction);
+    car->_steerCmd = agentAction;
 
     actionsCount++;
     lastActIdx = agentActionIdx;
+    lastOptimalAction = torcsState.angle / torcsState.steerLock;
+    lastDriverAction = driverAction;
 }
+
+static void
+restart(tCarElt* car)
+{
+    runs++;
+    double avgReward = reward / runs;
+    std::cout<<"Restarting after "<<actionsCount<<" actions."<<std::endl;
+    std::cout<<"Average reward after "<<runs<<" runs: "<<avgReward<<std::endl;
+    
+    car->RESET = 1;
+    car->RESTART = 1;
+    planner->reset();
+    actionsCount = 0;
+    numCallsTargetSpeed = 0;
+}
+
 
 /* End of the current race */
 static void

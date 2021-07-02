@@ -40,11 +40,10 @@
   </section>
 
   <section name="Quick Race">
-    <attnum name="distance" unit="km" val="0"/>
+    <attnum name="distance" unit="km" val="100000"/>
     <attstr name="type" val="race"/>
     <attstr name="starting order" val="drivers list"/>
     <attstr name="restart" val="yes"/>
-    <attnum name="laps" val="3"/>
     <attstr name="display mode" val="results only"/>
     <section name="Starting Grid">
       <attnum name="rows" val="2"/>
