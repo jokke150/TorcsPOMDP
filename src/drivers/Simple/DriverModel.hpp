@@ -54,8 +54,8 @@ public:
 private:
     static const int minAttentionDuration = 10; // Minimum duration of attention episode in s
     static const int maxAttentionDuration = 60; // Maximum duration of attention episode in s
-    static const int minDistractionDuration = 10; // Minimum duration of distration episode in s
-    static const int maxDistractionDuration = 60;; // Maximum duration of distration episode in s
+    static const int minDistractionDuration = 2; // Minimum duration of distration episode in s
+    static const int maxDistractionDuration = 6;; // Maximum duration of distration episode in s
 
     DriverModelState state;
 };

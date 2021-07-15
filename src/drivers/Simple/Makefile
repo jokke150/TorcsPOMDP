@@ -16,7 +16,7 @@
 ROBOT       = Simple
 MODULE      = ${ROBOT}.so
 MODULEDIR   = drivers/${ROBOT}
-SOURCES     = ${ROBOT}.cpp TorcsPomdp.cpp sensors.cpp 
+SOURCES     = ${ROBOT}.cpp sensors.cpp 
 
 SHIPDIR     = drivers/${ROBOT}
 SHIP        = ${ROBOT}.xml pw-306wrc.rgb logo.rgb
@@ -27,3 +27,6 @@ src-robots-Simple_PKGFILES = $(shell find * -maxdepth 0 -type f -print)
 src-robots-Simple_PKGDIR   = ${PACKAGE}-${VERSION}/$(subst ${TORCS_BASE},,$(shell pwd))
 
 include ${MAKE_DEFAULT}
+
+LDFLAGS =  -L${EXPORTBASE}/lib  -lopenal -lalut -lvorbisfile -L/usr/lib -L/home/jokke/Repositories/boost_1_76_0/install/lib/ -lboost_thread -lboost_system -rdynamic
+INCFLAGS =  -I${EXPORTBASE}/include -I${TORCS_BASE} -I/home/jokke/Repositories/boost_1_76_0

@@ -33,8 +33,6 @@
 #include <robottools.h>
 #include <robot.h>
 
-#include <simu.h>
-
 #include "TorcsSimulator.hpp"
 #include "Pomcp.hpp"
 
@@ -59,7 +57,8 @@ static double reward;
 static double discount = 1.0;
 
 static int numCallsTargetSpeed;
-static const int targetSpeed = 17;
+static bool isTargetSpeedReached = false;
+static const float targetSpeed = 17.4;
 static const int goalCallsTargetSpeed = 10;
 
 static void initTrack(int index, tTrack* track, void *carHandle, void **carParmHandle, tSituation *s); 
@@ -139,18 +138,17 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 
     // We want a constant target speed over a number of calls before starting the planning
     float speed = car->pub.speed;
-    if ((int) speed == targetSpeed) {
-        numCallsTargetSpeed++;
-    } else {
-        numCallsTargetSpeed = 0;
-    }
-    if (numCallsTargetSpeed < goalCallsTargetSpeed) {
-        if (actionsCount == 0) {
+    if (!isTargetSpeedReached) {
+        if ((int) (speed * 10 + .05) == (int) (targetSpeed * 10 + .05)) {
+            numCallsTargetSpeed++;
+        } else {
+            numCallsTargetSpeed = 0;
+        }
+        if (numCallsTargetSpeed < goalCallsTargetSpeed) {
             car->_steerCmd = torcsState.angle / torcsState.steerLock; // automatically steer to middle
             return;
-        }
-        else {
-            restart(car);
+        } else {
+            isTargetSpeedReached = true;
         }
     }
 
@@ -161,8 +159,8 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
     }
 
     // Restart race and start next run if terminal state is reached
-    State state{ *s, driverModel->getState() };
-    if (state.isTerminal()) {
+    if (State::isTerminal(*s)) {
+        std::cout<<"Terminal state reached."<<std::endl;
         restart(car);
     }
 
@@ -172,22 +170,24 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
         unsigned depth,size;
 
         planner->computeInfo(size,depth);
+        Observation obs = Observation(*s, lastDriverAction, actionsCount);
+
         std::cout<<"__________________________________"<<std::endl;
         std::cout<<"Count: "<<actionsCount<<std::endl;
         std::cout<<"Size: "<<size<<std::endl;
 		std::cout<<"Depth: "<<depth<<std::endl;
+        std::cout<<"Angle: "<<obs.angle<<std::endl;
         std::cout<<"Reward: "<<reward<<std::endl;
         double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
         std::cout<<"Distance: "<<absDistToMiddle<<std::endl;
         std::cout<<"Optimal: "<<lastOptimalAction<<std::endl;
         std::cout<<"Action: "<<actions[lastActIdx]<<std::endl;
 
-        Observation obs = Observation(state, lastDriverAction);
         planner->moveTo(lastActIdx, obs);
 
         // Calculate and sum up reward+
         discount *= simulator->getDiscount();
-        reward  += discount * RewardCalculator::reward(state, actions[lastActIdx]);
+        reward  += discount * RewardCalculator::reward(*s, actions[lastActIdx]);
     }
     int agentActionIdx = planner->getAction();
     float agentAction = actions[agentActionIdx];
@@ -197,8 +197,8 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
     float driverAction = utils::Discretizer::discretize(actions, driverModel->getAction());
 
     // Combine steering actions
-    // car->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction);
-    car->_steerCmd = agentAction;
+    car->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction);
+    // car->_steerCmd = agentAction;
 
     actionsCount++;
     lastActIdx = agentActionIdx;

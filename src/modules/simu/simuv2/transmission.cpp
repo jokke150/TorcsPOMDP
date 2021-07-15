@@ -242,9 +242,9 @@ void SimGearboxUpdate(tCar *car)
 			if (clutch->transferValue > 0.99f) {
 				clutch->transferValue = 0.0f;
 				trans->curI = trans->freeI[gearbox->gear +  1];
-				// if (car->ctrl->accelCmd > 0.1f) { // Removed for POMDP Simulator
-				// 	car->ctrl->accelCmd = 0.1f;
-				// }
+				if (car->ctrl->accelCmd > 0.1f) {
+					car->ctrl->accelCmd = 0.1f;
+				}
 		    }
 		}
     } else if ((car->ctrl->gear > gearbox->gear)) {

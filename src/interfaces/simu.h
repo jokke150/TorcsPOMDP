@@ -36,6 +36,7 @@
 
 #include <track.h>
 #include <raceman.h>
+#include <carstruct.h>
 
 #define SIM_IDENT	0
 
@@ -78,6 +79,12 @@ typedef void (*tfSimUpdate)(struct Situation* s, double deltaTime, int telemetry
 typedef void (*tfSimShutdown)(void);
 
 
+/** Callback function prototype for getting simulation module internal state */
+typedef void (*tfSimGetState)(tCar* car);
+
+/** Callback function prototype for setting simulation module internal state */
+typedef void (*tfSimSetState)(tCar* car);
+
 /** Interface Structure for Simulation
     @ingroup simumodint
 */
@@ -88,6 +95,8 @@ typedef struct
 	tfSimReConfig	reconfig;
 	tfSimUpdate		update;
 	tfSimShutdown	shutdown;
+    tfSimGetState	getState;
+    tfSimSetState	setState;
 } tSimItf;
 
 

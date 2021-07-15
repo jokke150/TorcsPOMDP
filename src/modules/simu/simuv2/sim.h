@@ -41,6 +41,8 @@ extern void SimReConfig(tCarElt *carElt);
 extern void SimUpdate(tSituation*, double deltaTime, int telemetry);
 extern void SimInit(int nbcars, tTrack* track, tdble fuelFactor, tdble damageFactor);
 extern void SimShutdown(void);
+extern void SimGetState(tCar* car);
+extern void SimSetState(tCar* car);
 
 extern void SimAxleConfig(tCar *car, int index);
 extern void SimAxleReConfig(tCar *car, int index);
@@ -117,7 +119,8 @@ extern tdble simSkidFactor[];
 
 /// return a number drawn uniformly from [0,1]
 inline float urandom() {
-	return ((((float)rand()-1)/((float)RAND_MAX)));
+	// return ((((float)rand()-1)/((float)RAND_MAX)));
+    return 0.5f;
 }
 
 #define SIM_VECT_COLL	12

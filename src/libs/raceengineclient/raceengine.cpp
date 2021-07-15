@@ -42,6 +42,8 @@
 static double	msgDisp;
 static double	bigMsgDisp;
 
+static double elapsed = 0.0;
+
 tRmInfo	*ReInfo = 0;
 int RESTART = 0; //ML
 
@@ -669,15 +671,17 @@ ReOneStep(double deltaTimeIncrement)
 	}
 
 	START_PROFILE("rbDrive*");
-	if ((s->currentTime - ReInfo->_reLastTime) >= RCM_MAX_DT_ROBOTS) {
-		s->deltaTime = s->currentTime - ReInfo->_reLastTime;
+	if (elapsed >= RCM_MAX_DT_ROBOTS) { // >= because of floating point arithmetic rounding
+		s->deltaTime = RCM_MAX_DT_SIMU;
 		for (i = 0; i < s->_ncars; i++) {
 			if ((s->cars[i]->_state & RM_CAR_STATE_NO_SIMU) == 0) {
 				robot = s->cars[i]->robot;
 				robot->rbDrive(robot->index, s->cars[i], s, ReInfo);
 			}
 		}
-		ReInfo->_reLastTime = s->currentTime;
+		elapsed = 0;
+	} else {
+		elapsed += RCM_MAX_DT_SIMU;
 	}
 	STOP_PROFILE("rbDrive*");
 

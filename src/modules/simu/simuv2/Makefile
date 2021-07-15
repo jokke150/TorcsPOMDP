@@ -46,9 +46,12 @@ EXPINCDIRS	= SOLID-2.0
 
 PKGSUBDIRS	= $(SUBDIRS)
 
+EXPDIR  = include
+
+EXPORTS = $(shell find * -maxdepth 0 -name '*.h' -print)
+
 src_PKGFILES	= $(shell find * -maxdepth 0 -type f -print)
 
 src_PKGDIR	= ${PACKAGE}-${VERSION}/$(subst ${TORCS_BASE},,$(shell pwd))
 
 include ${MAKE_DEFAULT}
-

@@ -55,10 +55,10 @@ CFLAGS   =  @CFLAGS@ ${CFLAGSD}
 #EXT_LIBS = -lpthread @LIBS@
 EXT_LIBS = @LIBS@
 #LDFLAGS =  @LDFLAGS@ -L${EXPORTBASE}/lib -L/usr/lib -L/usr/local/lib
-LDFLAGS =  -L${EXPORTBASE}/lib @LDFLAGS@ -L/usr/lib -L/home/jokke/Repositories/boost_1_76_0/install/lib/ -lboost_thread -lboost_system -rdynamic
+LDFLAGS =  -L${EXPORTBASE}/lib @LDFLAGS@ -L/usr/lib -rdynamic
 
 #INCFLAGS =  -I${EXPORTBASE}/include -I/usr/include -I/usr/local/include
-INCFLAGS =  -I${EXPORTBASE}/include -I${TORCS_BASE} -I/home/jokke/Repositories/boost_1_76_0
+INCFLAGS =  -I${EXPORTBASE}/include -I${TORCS_BASE}
 
 CPP = @CPP@ @CPPFLAGS@ -M -D__DEPEND__
 

@@ -129,7 +129,7 @@ SimConfig(tCarElt *carElt, RmInfo *info)
 
     SimCarConfig(car);
 
-    SimCarCollideConfig(car, info->track);
+    // SimCarCollideConfig(car, info->track);
     sgMakeCoordMat4(carElt->pub.posMat, carElt->_pos_X - carElt->_statGC_x, carElt->_pos_Y - carElt->_statGC_y, carElt->_pos_Z - carElt->_statGC_z,
 		    RAD2DEG(carElt->_yaw), RAD2DEG(carElt->_roll), RAD2DEG(carElt->_pitch));
 }
@@ -265,7 +265,7 @@ RemoveCar(tCar *car, tSituation *s)
 	carElt->_state |= RM_CAR_STATE_PULLUP;
 	// RM_CAR_STATE_NO_SIMU evaluates to > 0 from here, so we remove the car from the
 	// collision detection.
-	SimCollideRemoveCar(car, s->_ncars);
+	// SimCollideRemoveCar(car, s->_ncars);
 
 	carElt->priv.simcollision = carElt->priv.collision = car->collision = 0;
 	for(i = 0; i < 4; i++) {
@@ -395,7 +395,7 @@ SimUpdate(tSituation *s, double deltaTime, int telemetry)
 		}
 	}
 	
-	SimCarCollideCars(s);
+	// SimCarCollideCars(s);
 	
 	/* printf ("%f - ", s->currentTime); */
 	
@@ -442,7 +442,7 @@ SimInit(int nbcars, tTrack* track, tdble fuelFactor, tdble damageFactor)
 	rulesDamageFactor = damageFactor;
     SimNbCars = nbcars;
     SimCarTable = (tCar*)calloc(nbcars, sizeof(tCar));
-    SimCarCollideInit(track);
+    // SimCarCollideInit(track);
 }
 
 void
@@ -451,7 +451,7 @@ SimShutdown(void)
     tCar *car;
     int	 ncar;
 
-    SimCarCollideShutdown(SimNbCars);
+    // SimCarCollideShutdown(SimNbCars);
     if (SimCarTable) {
 	for (ncar = 0; ncar < SimNbCars; ncar++) {
 	    car = &(SimCarTable[ncar]);
@@ -461,7 +461,6 @@ SimShutdown(void)
 	SimCarTable = 0;
     }
 }
-
 
 bool SimAdjustPitCarSetupParam(tCarPitSetupValue* v)
 {
@@ -478,4 +477,16 @@ bool SimAdjustPitCarSetupParam(tCarPitSetupValue* v)
 
 	v->value = v->max;
 	return false;
+}
+
+void
+SimGetState(tCar* car)
+{
+    *car = SimCarTable[0];
+}
+
+void
+SimSetState(tCar* car)
+{
+	SimCarTable = car;
 }

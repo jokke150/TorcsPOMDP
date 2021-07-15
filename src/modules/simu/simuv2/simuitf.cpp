@@ -56,6 +56,8 @@ simuInit(int /* index */, void *pt)
     sim->reconfig = SimReConfig;
     sim->update   = SimUpdate;
     sim->shutdown = SimShutdown;
+    sim->getState = SimGetState;
+    sim->setState = SimSetState;
     
     return 0;
 }
