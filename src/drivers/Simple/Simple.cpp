@@ -169,7 +169,8 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
         // Only update planner after first action
         unsigned depth,size;
 
-        planner->computeInfo(size,depth);
+        depth = size = 0;
+        // planner->computeInfo(size,depth);
         Observation obs = Observation(*s, lastDriverAction, actionsCount);
 
         std::cout<<"__________________________________"<<std::endl;
@@ -183,25 +184,26 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
         std::cout<<"Optimal: "<<lastOptimalAction<<std::endl;
         std::cout<<"Action: "<<actions[lastActIdx]<<std::endl;
 
-        planner->moveTo(lastActIdx, obs);
+        // planner->moveTo(lastActIdx, obs);
 
         // Calculate and sum up reward+
         discount *= simulator->getDiscount();
         reward  += discount * RewardCalculator::reward(*s, actions[lastActIdx]);
     }
-    int agentActionIdx = planner->getAction();
-    float agentAction = actions[agentActionIdx];
+    // int agentActionIdx = planner->getAction();
+    // float agentAction = actions[agentActionIdx];
 
     // // Determine driver's action (discretized)
     driverModel->update(torcsState);
     float driverAction = utils::Discretizer::discretize(actions, driverModel->getAction());
 
     // Combine steering actions
-    car->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction);
+    // car->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction);
     // car->_steerCmd = agentAction;
+    car->_steerCmd = driverAction;
 
     actionsCount++;
-    lastActIdx = agentActionIdx;
+    // lastActIdx = agentActionIdx;
     lastOptimalAction = torcsState.angle / torcsState.steerLock;
     lastDriverAction = driverAction;
 }
