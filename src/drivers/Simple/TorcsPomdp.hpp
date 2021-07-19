@@ -82,7 +82,7 @@ namespace std {
         hash_combine(seed, hash_value(o.angle));
         // boost::hash_combine(seed, hash_value(o.distToMiddle));
         hash_combine(seed, hash_value(o.distToStart));
-        // boost::hash_combine(seed, hash_value(o.lastDriverAction));
+        hash_combine(seed, hash_value(o.lastDriverAction));
         // hash_combine(seed, hash_value(o.numActions));
         return seed;
     }
@@ -213,7 +213,7 @@ bool Observation::operator==(Observation const& other) const
     //     && distToMiddle == other.distToMiddle;
     // return angle == other.angle && distToMiddle == other.distToMiddle && distToStart == other.distToStart && lastDriverAction == other.lastDriverAction;
     //return angle == other.angle && distToMiddle == other.distToMiddle && distToStart == other.distToStart;
-    return angle == other.angle && distToStart == other.distToStart;
+    return angle == other.angle && distToStart == other.distToStart && lastDriverAction == other.lastDriverAction;
 }
 
 inline
