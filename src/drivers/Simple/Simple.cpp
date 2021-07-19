@@ -47,7 +47,7 @@ static PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>>* pla
 
 static DriverModel* driverModel = nullptr;
 
-static std::vector<Action> actions{-1.0, -0.5, 0, 0.5, 1.0};
+static std::vector<Action> actions{ -1, -0.6, -0.2, -0.1, -0.05, 0, 0.05, 0.1, 0.2, 0.6, 1 };
 static unsigned int runs = 0;
 static unsigned long actionsCount;
 static unsigned int lastActIdx;
@@ -119,7 +119,6 @@ newrace(int index, tCarElt* car, tSituation *s)
 { 
     actionsCount = 0;
     numCallsTargetSpeed = 0;
-    driverModel = new DriverModel(); // TODO: Randomize distraction / attentiveness in initial state?
 } 
 
 /* Drive during race. */
@@ -154,8 +153,8 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 
     if (!simulator) {
         simulator = new TorcsSimulator{ actions, *s, *ReInfo };
-        delete planner;
-        planner = new PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>>{ *simulator, PLANNING_TIME, RESAMPLING_TIME, THRESHOLD, EXPLORATION_CTE, PARTICLES };
+        planner = new PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>>{ *simulator, PLANNING_TIME, RESAMPLING_TIME, THRESHOLD, EXPLORATION_CTE, PARTICLES };   
+        driverModel = new DriverModel(s->currentTime);
     }
 
     // Restart race and start next run if terminal state is reached
@@ -181,8 +180,12 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
         std::cout<<"Reward: "<<reward<<std::endl;
         double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
         std::cout<<"Distance: "<<absDistToMiddle<<std::endl;
+        std::cout<<"Driver distracted: "<<driverModel->getState().isDistracted<<std::endl;
+        std::cout<<"Current time: "<<s->currentTime<<std::endl;
+        std::cout<<"Driver state duration: "<<driverModel->getState().timeEpisodeEnd<<std::endl;
         std::cout<<"Optimal: "<<lastOptimalAction<<std::endl;
-        std::cout<<"Action: "<<actions[lastActIdx]<<std::endl;
+        std::cout<<"Agent action: "<<actions[lastActIdx]<<std::endl;
+        std::cout<<"Driver action: "<<lastDriverAction<<std::endl;
 
         // planner->moveTo(lastActIdx, obs);
 

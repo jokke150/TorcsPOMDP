@@ -68,7 +68,7 @@ TorcsSimulator::~TorcsSimulator() {}
 inline
 State& TorcsSimulator::sampleInitialState(State& state) const
 {
-	DriverModelState modelState = DriverModel::sampleState();
+	DriverModelState modelState = DriverModel::sampleState(initSituation.currentTime);
 	tSituation situation{ initSituation };
 
 	tCar car{ initEnvState };
@@ -146,8 +146,7 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 	float driverAction = utils::Discretizer::discretize(actions, nextState.modelState.action);
 
 	// Combine steering actions
-    // car->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction) ;
-	carElt->_steerCmd = agentAction;
+    carElt->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction);
 
 	// Set simulator's internal car state
 	genModel.setState(car);

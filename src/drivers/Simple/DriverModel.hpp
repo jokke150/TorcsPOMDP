@@ -9,7 +9,7 @@ namespace pomdp
 struct DriverModelState
 {
     bool isDistracted;
-    int timeEpisodeEnd;
+    double timeEpisodeEnd;
     float action;
 };
 
@@ -40,7 +40,7 @@ TorcsState::TorcsState(float angle, double currentTime, float steerLock) : angle
 class DriverModel
 {
 public:
-    DriverModel();
+    DriverModel(double currentTime);
 
     DriverModelState getState();
    void setState(DriverModelState modelState);
@@ -49,20 +49,20 @@ public:
 
     void update(TorcsState& torcsState);
 
-    static DriverModelState sampleState();
+    static DriverModelState sampleState(double currentTime);
     static void updateInPlace(const TorcsState& torcsState, DriverModelState& modelState);
 private:
-    static const int minAttentionDuration = 10; // Minimum duration of attention episode in s
-    static const int maxAttentionDuration = 60; // Maximum duration of attention episode in s
-    static const int minDistractionDuration = 2; // Minimum duration of distration episode in s
-    static const int maxDistractionDuration = 6;; // Maximum duration of distration episode in s
+    static constexpr double minAttentionDuration = 1; // Minimum duration of attention episode in s
+    static constexpr double maxAttentionDuration = 20; // Maximum duration of attention episode in s
+    static constexpr double minDistractionDuration = 1; // Minimum duration of distration episode in s
+    static constexpr double maxDistractionDuration = 10;; // Maximum duration of distration episode in s
 
     DriverModelState state;
 };
 
 inline 
-DriverModel::DriverModel() {
-    state = DriverModelState{false, -1, -2};
+DriverModel::DriverModel(double currentTime) {
+    state = sampleState(currentTime);
 }
 
 inline 
@@ -86,8 +86,12 @@ void DriverModel::update(TorcsState& torcsState) {
 }
 
 inline 
-DriverModelState DriverModel::sampleState() {
-    return DriverModelState{ utils::RANDOM.getBool(), -1, (float) utils::RANDOM.getSigned(-1.0, 1.0) };
+DriverModelState DriverModel::sampleState(double currentTime) {
+    // TODO: This leads to the driver model acting really random if it is inititally distracted since the initial action is random
+    // return DriverModelState{ utils::RANDOM.getBool(), -1, (float) utils::RANDOM.getSigned(-1.0, 1.0) };
+    int duration = utils::RANDOM(maxAttentionDuration + 1);
+    duration = duration > minAttentionDuration ? duration : minAttentionDuration;
+    return DriverModelState{ false, currentTime + duration, -2 };
 }
 
 inline 
@@ -99,7 +103,7 @@ void DriverModel::updateInPlace(const TorcsState& torcsState, DriverModelState& 
             modelState.timeEpisodeEnd = torcsState.currentTime + duration;
             modelState.isDistracted = false;
         } else {
-            int duration = utils::RANDOM(maxDistractionDuration);
+            int duration = utils::RANDOM(maxDistractionDuration + 1);
             duration = duration > minDistractionDuration ? duration : minDistractionDuration;
             modelState.timeEpisodeEnd = torcsState.currentTime + duration;
             modelState.isDistracted = true;
