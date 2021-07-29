@@ -69,37 +69,7 @@ inline
 State& TorcsSimulator::sampleInitialState(State& state) const
 {
 	DriverModelState modelState = DriverModel::sampleState(initSituation.currentTime);
-	tSituation situation{ initSituation };
-
-	tCar car{ initEnvState };
-	tCarElt* carElt = situation.cars[0];
-
-	// Update the pointers in the simulator's internal car state to match the new situation
-	car.carElt = carElt;
-	car.ctrl   = &carElt->ctrl;
-    car.params = carElt->_carHandle;
-
-	// Update transmission pointers so that they point to this car's values
-	tTransmission *trans = &(car.transmission);
-
-	/* Link between the differentials */
-	for (int j = 0; j < 2; j++) {
-		trans->differential[TRANS_FRONT_DIFF].inAxis[j]  = &(car.wheel[j].feedBack);
-		trans->differential[TRANS_FRONT_DIFF].outAxis[j] = &(car.wheel[j].in);
-	}
-
-	for (int j = 0; j < 2; j++) {
-		trans->differential[TRANS_REAR_DIFF].inAxis[j]  = &(car.wheel[2+j].feedBack);
-		trans->differential[TRANS_REAR_DIFF].outAxis[j] = &(car.wheel[2+j].in);
-	}
-
-	trans->differential[TRANS_CENTRAL_DIFF].inAxis[0]  = &(trans->differential[TRANS_FRONT_DIFF].feedBack);
-	trans->differential[TRANS_CENTRAL_DIFF].outAxis[0] = &(trans->differential[TRANS_FRONT_DIFF].in);
-	
-	trans->differential[TRANS_CENTRAL_DIFF].inAxis[1]  = &(trans->differential[TRANS_REAR_DIFF].feedBack);
-	trans->differential[TRANS_CENTRAL_DIFF].outAxis[1] = &(trans->differential[TRANS_REAR_DIFF].in);
-
-	state = State{ situation, car, modelState, 0 };
+	state = State{ initSituation, initEnvState, modelState, 0 };
 	return state;
 }
 
@@ -107,49 +77,24 @@ inline
 bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& nextState, Observation& observation, double& reward, unsigned depth) const
 {
 	// test(state);
-	
+
 	const Action& agentAction = getAction(actionIndex);
 	
-	nextState = State{ state };
-	tCar* car = &nextState.car;
-	tCarElt* carElt = nextState.situation.cars[0];
+	nextState = state;
 	tSituation* situation = &nextState.situation;
 
-	// Update the pointers in the simulator's internal car state to match the new situation
-    car->carElt = carElt;
-    car->ctrl   = &carElt->ctrl;
-    car->params = carElt->_carHandle;
-
-	// Update transmission pointers so that they point to this car's values
-	tTransmission *trans = &(car->transmission);
-
-	/* Link between the differentials */
-	for (int j = 0; j < 2; j++) {
-		trans->differential[TRANS_FRONT_DIFF].inAxis[j]  = &(car->wheel[j].feedBack);
-		trans->differential[TRANS_FRONT_DIFF].outAxis[j] = &(car->wheel[j].in);
-	}
-
-	for (int j = 0; j < 2; j++) {
-		trans->differential[TRANS_REAR_DIFF].inAxis[j]  = &(car->wheel[2+j].feedBack);
-		trans->differential[TRANS_REAR_DIFF].outAxis[j] = &(car->wheel[2+j].in);
-	}
-
-	trans->differential[TRANS_CENTRAL_DIFF].inAxis[0]  = &(trans->differential[TRANS_FRONT_DIFF].feedBack);
-	trans->differential[TRANS_CENTRAL_DIFF].outAxis[0] = &(trans->differential[TRANS_FRONT_DIFF].in);
-	
-	trans->differential[TRANS_CENTRAL_DIFF].inAxis[1]  = &(trans->differential[TRANS_REAR_DIFF].feedBack);
-	trans->differential[TRANS_CENTRAL_DIFF].outAxis[1] = &(trans->differential[TRANS_REAR_DIFF].in);
-	
 	// Get driver's action
 	TorcsState torcsState{ *situation };
 	DriverModel::updateInPlace(torcsState, nextState.modelState);
 	float driverAction = utils::Discretizer::discretize(actions, nextState.modelState.action);
 
 	// Combine steering actions
-    carElt->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction);
+    // situation->cars[0]->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction);
+	// situation->cars[0]->_steerCmd = agentAction;
+	situation->cars[0]->_steerCmd = std::max(std::min(driverAction + agentAction, 1.0f), -1.0f);
 
 	// Set simulator's internal car state
-	genModel.setState(car);
+	genModel.setState(&nextState.car);
 	
 	// Simulate situation
 	double elapsed = 0;
@@ -163,9 +108,6 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 	// Set reward after obtaining next state as it is based upon it
 	reward = RewardCalculator::reward(*situation, agentAction);
 
-	// Update next state's car state
-	// genModel.getState(car); 
-
 	nextState.actionsCount++;
 	observation = Observation{ *situation, driverAction, nextState.actionsCount};
     return nextState.isTerminal();
@@ -173,37 +115,10 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 
 inline
 void TorcsSimulator::test(const State& origState) const {
-	State nextState = State{ origState };
+	State nextState = origState;
+	tSituation* situation = &nextState.situation;
+	tCarElt* carElt = nextState.situation.cars[0];
 	for (int i = 0; i < 10000; i++) {
-		tCar* car = &nextState.car;
-		tCarElt* carElt = nextState.situation.cars[0];
-		tSituation* situation = &nextState.situation;
-
-		// Update the pointers in the simulator's internal car state to match the new situation
-		car->carElt = carElt;
-		car->ctrl   = &carElt->ctrl;
-		car->params = carElt->_carHandle;
-
-		// Update transmission pointers so that they point to this car's values
-		tTransmission *trans = &(car->transmission);
-
-		/* Link between the differentials */
-		for (int j = 0; j < 2; j++) {
-			trans->differential[TRANS_FRONT_DIFF].inAxis[j]  = &(car->wheel[j].feedBack);
-			trans->differential[TRANS_FRONT_DIFF].outAxis[j] = &(car->wheel[j].in);
-		}
-
-		for (int j = 0; j < 2; j++) {
-			trans->differential[TRANS_REAR_DIFF].inAxis[j]  = &(car->wheel[2+j].feedBack);
-			trans->differential[TRANS_REAR_DIFF].outAxis[j] = &(car->wheel[2+j].in);
-		}
-
-		trans->differential[TRANS_CENTRAL_DIFF].inAxis[0]  = &(trans->differential[TRANS_FRONT_DIFF].feedBack);
-		trans->differential[TRANS_CENTRAL_DIFF].outAxis[0] = &(trans->differential[TRANS_FRONT_DIFF].in);
-		
-		trans->differential[TRANS_CENTRAL_DIFF].inAxis[1]  = &(trans->differential[TRANS_REAR_DIFF].feedBack);
-		trans->differential[TRANS_CENTRAL_DIFF].outAxis[1] = &(trans->differential[TRANS_REAR_DIFF].in);
-
 		const float SC = 1.0;
 		float angle =  RtTrackSideTgAngleL(&(carElt->_trkPos)) - carElt->_yaw;
 		NORM_PI_PI(angle); // normalize the angle between -PI and + PI
@@ -214,7 +129,7 @@ void TorcsSimulator::test(const State& origState) const {
 		initRef.cars[0]->_steerCmd = carElt->_steerCmd;
 
 		// Set simulator's internal car state
-		genModel.setState(car);
+		genModel.setState(&nextState.car);
 
 		double elapsed = 0;
 		while (elapsed <= RCM_MAX_DT_ROBOTS + RCM_MAX_DT_SIMU) {
@@ -259,8 +174,6 @@ void TorcsSimulator::loadGenModel() {
         if (GfModLoad(0, buf, &modList)) throw std::runtime_error("Could not load simu.");
         modList->modInfo->fctInit(modList->modInfo->index, &genModel);
         genModel.init(raceEngineInfo.s->_ncars, raceEngineInfo.track, raceEngineInfo.raceRules.fuelFactor, raceEngineInfo.raceRules.damageFactor);
-		// genModel.config(initSituation.cars[0], &raceEngineInfo);
-		// genModel.setState(&initEnvState);
     }
 }
 

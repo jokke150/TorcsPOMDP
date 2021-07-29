@@ -53,9 +53,9 @@ public:
     static void updateInPlace(const TorcsState& torcsState, DriverModelState& modelState);
 private:
     static constexpr double minAttentionDuration = 1; // Minimum duration of attention episode in s
-    static constexpr double maxAttentionDuration = 20; // Maximum duration of attention episode in s
+    static constexpr double maxAttentionDuration = 5; // Maximum duration of attention episode in s
     static constexpr double minDistractionDuration = 1; // Minimum duration of distration episode in s
-    static constexpr double maxDistractionDuration = 10;; // Maximum duration of distration episode in s
+    static constexpr double maxDistractionDuration = 5;; // Maximum duration of distration episode in s
 
     DriverModelState state;
 };
@@ -87,10 +87,7 @@ void DriverModel::update(TorcsState& torcsState) {
 
 inline 
 DriverModelState DriverModel::sampleState(double currentTime) {
-    // TODO: This leads to the driver model acting really random if it is inititally distracted since the initial action is random
-    // return DriverModelState{ utils::RANDOM.getBool(), -1, (float) utils::RANDOM.getSigned(-1.0, 1.0) };
-    int duration = utils::RANDOM(maxAttentionDuration + 1);
-    duration = duration > minAttentionDuration ? duration : minAttentionDuration;
+    double duration = utils::RANDOM.getSigned(minAttentionDuration, maxAttentionDuration);
     return DriverModelState{ false, currentTime + duration, -2 };
 }
 
@@ -98,13 +95,11 @@ inline
 void DriverModel::updateInPlace(const TorcsState& torcsState, DriverModelState& modelState) {
     if (torcsState.currentTime >= modelState.timeEpisodeEnd) {
         if (modelState.isDistracted) {
-            int duration = utils::RANDOM(maxAttentionDuration + 1);
-            duration = duration > minAttentionDuration ? duration : minAttentionDuration;
+            double duration = utils::RANDOM.getSigned(minAttentionDuration, maxAttentionDuration);
             modelState.timeEpisodeEnd = torcsState.currentTime + duration;
             modelState.isDistracted = false;
         } else {
-            int duration = utils::RANDOM(maxDistractionDuration + 1);
-            duration = duration > minDistractionDuration ? duration : minDistractionDuration;
+            double duration = utils::RANDOM.getSigned(minDistractionDuration, maxDistractionDuration);
             modelState.timeEpisodeEnd = torcsState.currentTime + duration;
             modelState.isDistracted = true;
         }

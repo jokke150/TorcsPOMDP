@@ -1,4 +1,5 @@
-#include<cmath>
+#include <cmath>
+#include <algorithm>
 #include <boost/functional/hash.hpp>
 #include <tgf.h>
 #include <raceman.h>
@@ -15,22 +16,24 @@ namespace pomdp
 // TODO: Tune
 #define PLANNING_TIME 1
 #define RESAMPLING_TIME 1
-#define THRESHOLD 0.1
+#define THRESHOLD 1
 #define EXPLORATION_CTE 100
-#define PARTICLES 10000
+#define PARTICLES 100000
 #define DISCOUNT 0.95
 
 #define REWARD_CENTER 1
-#define PENALTY_OFF_LANE 10.0
+#define PENALTY_OFF_LANE -10.0
 #define PENALTY_INTENSITY_EXP 2
 
-#define TERMINAL_OFF_LANE_DIST 0.1
+#define TERMINAL_OFF_LANE_DIST 1.05
 
 typedef struct State 
 {   
     State();
     State(const State& other);
-    State(tSituation& situation, tCar& car, DriverModelState& modelState, int actionsCount);
+    State(const tSituation& situation, const tCar& car, const DriverModelState& modelState, int actionsCount);
+    
+    State& operator=(const State& other);
     
     bool isTerminal();
     static bool isTerminal(tSituation& situation);
@@ -40,6 +43,47 @@ typedef struct State
     DriverModelState modelState;
     int actionsCount;
 } State;
+
+inline State::State() {}
+
+inline 
+State::State(const State& other) : modelState{ other.modelState }, actionsCount{ other.actionsCount } 
+{
+    situation = other.situation;
+    car = tCar{ other.car, situation.cars[0] };
+}
+
+inline 
+State::State(const tSituation& situation, const tCar& car, const DriverModelState& modelState, int actionsCount) : modelState{ modelState }, actionsCount{ actionsCount } 
+{
+    this->situation = situation;
+    this->car = tCar{ car, this->situation.cars[0] };
+}
+
+inline
+State& State::operator=(const State& other) 
+{
+    if (this == &other) return *this;
+    situation = other.situation;
+    car = tCar{ other.car, situation.cars[0] };
+    modelState = other.modelState;
+    actionsCount = other.actionsCount;
+    return *this;
+}
+
+inline
+bool State::isTerminal() {
+    tCarElt* car = situation.cars[0];
+    double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
+	return absDistToMiddle >= TERMINAL_OFF_LANE_DIST;
+}
+
+inline
+bool State::isTerminal(tSituation& situation) {
+    tCarElt* car = situation.cars[0];
+    double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
+	return absDistToMiddle >= TERMINAL_OFF_LANE_DIST;
+}
 
 class Observation
 {   
@@ -62,67 +106,11 @@ private:
     // static Sensors *trackSensors;
     // static const std::vector<float> sensorBins;
     static const int numAngleBins = 100001; // Must be an odd number!
-    static const int numMiddleBins = 51; // Must be an odd number!
+    static const int numMiddleBins = 100001; // Must be an odd number!
     static constexpr float startBinSize = 0.05f;
     static const std::vector<float> angleBins;
     static const std::vector<float> middleBins;
 };
-
-}
-
-namespace std {
-  template <> struct hash<pomdp::Observation>
-  {
-    size_t operator()(const pomdp::Observation & o) const
-    {
-        using boost::hash_value;
-		using boost::hash_combine;
-        size_t seed = 0;
-        // boost::hash_combine(seed, hash_value(o.trackSensorData));
-        hash_combine(seed, hash_value(o.angle));
-        // boost::hash_combine(seed, hash_value(o.distToMiddle));
-        hash_combine(seed, hash_value(o.distToStart));
-        hash_combine(seed, hash_value(o.lastDriverAction));
-        // hash_combine(seed, hash_value(o.numActions));
-        return seed;
-    }
-  };
-}
-
-namespace pomdp {
-
-typedef float Action;
-
-class RewardCalculator 
-{
-public:
-    static double reward(const tSituation& situation, const Action& action);
-private:
-    static double rewardPosition(const tSituation& situation);
-    static double penaltyActionIntensity(const Action& action);
-};
-
-inline State::State() {}
-
-inline 
-State::State(const State& other) : situation{ other.situation }, car{ other.car }, modelState{ other.modelState }, actionsCount{ other.actionsCount } {}
-
-inline 
-State::State(tSituation& situation, tCar& car, DriverModelState& modelState, int actionsCount) : situation{ situation }, car{ car }, modelState{ modelState }, actionsCount{ actionsCount } {}
-
-inline
-bool State::isTerminal() {
-    tCarElt* car = situation.cars[0];
-    double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
-	return absDistToMiddle >= TERMINAL_OFF_LANE_DIST;
-}
-
-inline
-bool State::isTerminal(tSituation& situation) {
-    tCarElt* car = situation.cars[0];
-    double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
-	return absDistToMiddle >= TERMINAL_OFF_LANE_DIST;
-}
 
 // const int Observation::numSensors = 5;
 // const float Observation::sensorRange = 100;
@@ -189,8 +177,8 @@ Observation::Observation(tSituation& situation, float lastDriverAction, int numA
     // }
 
     // Compute distance to middle
-    // distToMiddle = 2 * car->_trkPos.toMiddle / (car->_trkPos.seg->width);
-    // distToMiddle = utils::Discretizer::discretize(middleBins, distToMiddle);
+    distToMiddle = 2 * car->_trkPos.toMiddle / (car->_trkPos.seg->width);
+    distToMiddle = utils::Discretizer::discretize(middleBins, distToMiddle);
 
     // Compute distance to start
     distToStart = car->_trkPos.seg->lgfromstart + 
@@ -214,24 +202,78 @@ bool Observation::operator==(Observation const& other) const
     // return angle == other.angle && distToMiddle == other.distToMiddle && distToStart == other.distToStart && lastDriverAction == other.lastDriverAction;
     //return angle == other.angle && distToMiddle == other.distToMiddle && distToStart == other.distToStart;
     return angle == other.angle && distToStart == other.distToStart && lastDriverAction == other.lastDriverAction;
+    // return angle == other.angle && distToMiddle == other.distToMiddle && distToStart == other.distToStart;
 }
+
+}
+
+namespace std {
+  template <> struct hash<pomdp::Observation>
+  {
+    size_t operator()(const pomdp::Observation & o) const
+    {
+        using boost::hash_value;
+		using boost::hash_combine;
+        size_t seed = 0;
+        // boost::hash_combine(seed, hash_value(o.trackSensorData));
+        hash_combine(seed, hash_value(o.angle));
+        // hash_combine(seed, hash_value(o.distToMiddle));
+        hash_combine(seed, hash_value(o.distToStart));
+        hash_combine(seed, hash_value(o.lastDriverAction));
+        // hash_combine(seed, hash_value(o.numActions));
+        return seed;
+    }
+  };
+}
+
+namespace pomdp {
+
+typedef float Action;
+
+class RewardCalculator 
+{
+public:
+    static double reward(const tSituation& situation, const Action& action);
+private:
+    static double rewardPosition(const tSituation& situation);
+    static double penaltyActionIntensity(const tSituation& situation, const Action& action);
+    static double rewardAngle(const tSituation& situation);
+};
 
 inline
 double RewardCalculator::reward(const tSituation& situation, const Action& action) {
-    return rewardPosition(situation) - penaltyActionIntensity(action);
+    // return rewardPosition(absDistToMiddle) - penaltyActionIntensity(action, absDistToMiddle);
+    return rewardAngle(situation) * (1 - 0.5 * abs(action));
 }
 
 inline
 double RewardCalculator::rewardPosition(const tSituation& situation) {
     tCarElt *car = situation.cars[0];
     double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
-    return absDistToMiddle <= 1 ? REWARD_CENTER - REWARD_CENTER * absDistToMiddle : PENALTY_OFF_LANE;
+    double reward = absDistToMiddle <= 1 ? REWARD_CENTER * std::pow(0.01, absDistToMiddle) : PENALTY_OFF_LANE;
+    return reward;
 }
 
 inline
-double RewardCalculator::penaltyActionIntensity(const Action& action) {
-    // return pow(abs(a), PENALTY_INTENSITY_EXP);
-    return 0;
+double RewardCalculator::penaltyActionIntensity(const tSituation& situation, const Action& action) {
+    tCarElt *car = situation.cars[0];
+    double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
+    double penalty = (1 - std::min(absDistToMiddle, 1.0)) * pow(abs(action), PENALTY_INTENSITY_EXP);
+    return penalty;
+}
+
+inline
+double RewardCalculator::rewardAngle(const tSituation& situation) {
+    tCarElt *car = situation.cars[0];
+    double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
+    const float SC = 1.0;
+    float angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
+    NORM_PI_PI(angle); // normalize the angle between -PI and + PI
+    angle -= SC * car->_trkPos.toMiddle / car->_trkPos.seg->width;
+    float absAngle = abs(angle); 
+    absAngle /= PI; // normalize to [0, 1]
+    double reward = absDistToMiddle <= 1 ? REWARD_CENTER * std::pow(0.01, absAngle) : PENALTY_OFF_LANE;
+    return reward;
 }
 
 }

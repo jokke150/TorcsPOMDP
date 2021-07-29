@@ -25,6 +25,7 @@
 #include <math.h>
 #include <stdexcept>
 #include <iostream>
+#include <algorithm>
 
 #include <tgf.h> 
 #include <track.h> 
@@ -47,13 +48,14 @@ static PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>>* pla
 
 static DriverModel* driverModel = nullptr;
 
-static std::vector<Action> actions{ -1, -0.6, -0.2, -0.1, -0.05, 0, 0.05, 0.1, 0.2, 0.6, 1 };
+static std::vector<Action> actions{ -1, -0.6, -0.2, -0.1, 0, 0.1, 0.2, 0.6, 1 };
 static unsigned int runs = 0;
 static unsigned long actionsCount;
 static unsigned int lastActIdx;
 static float lastDriverAction;
 static float lastOptimalAction;
-static double reward; 
+static float lastCombinedAction;
+static double reward = 0.0;
 static double discount = 1.0;
 
 static int numCallsTargetSpeed;
@@ -166,10 +168,10 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
     // Planning
     if (actionsCount) {
         // Only update planner after first action
-        unsigned depth,size;
+        unsigned depth, size;
 
         depth = size = 0;
-        // planner->computeInfo(size,depth);
+        planner->computeInfo(size,depth);
         Observation obs = Observation(*s, lastDriverAction, actionsCount);
 
         std::cout<<"__________________________________"<<std::endl;
@@ -184,17 +186,19 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
         std::cout<<"Current time: "<<s->currentTime<<std::endl;
         std::cout<<"Driver state duration: "<<driverModel->getState().timeEpisodeEnd<<std::endl;
         std::cout<<"Optimal: "<<lastOptimalAction<<std::endl;
-        std::cout<<"Agent action: "<<actions[lastActIdx]<<std::endl;
-        std::cout<<"Driver action: "<<lastDriverAction<<std::endl;
+        std::cout<<"Combined: "<<lastCombinedAction<<std::endl;
+        std::cout<<"Agent: "<<actions[lastActIdx]<<std::endl;
+        std::cout<<"Driver: "<<lastDriverAction<<std::endl;
 
-        // planner->moveTo(lastActIdx, obs);
+        planner->moveTo(lastActIdx, obs);
 
-        // Calculate and sum up reward+
-        discount *= simulator->getDiscount();
-        reward  += discount * RewardCalculator::reward(*s, actions[lastActIdx]);
+        // Calculate and sum up reward
+        // discount *= simulator->getDiscount();
+        // reward  += discount * RewardCalculator::reward(*s, actions[lastActIdx]);
+        reward += RewardCalculator::reward(*s, actions[lastActIdx]);
     }
-    // int agentActionIdx = planner->getAction();
-    // float agentAction = actions[agentActionIdx];
+    int agentActionIdx = planner->getAction();
+    float agentAction = actions[agentActionIdx];
 
     // // Determine driver's action (discretized)
     driverModel->update(torcsState);
@@ -203,11 +207,13 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
     // Combine steering actions
     // car->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction);
     // car->_steerCmd = agentAction;
-    car->_steerCmd = driverAction;
+    // car->_steerCmd = driverAction;
+    car->_steerCmd = std::max(std::min(driverAction + agentAction, 1.0f), -1.0f);
 
     actionsCount++;
-    // lastActIdx = agentActionIdx;
+    lastActIdx = agentActionIdx;
     lastOptimalAction = torcsState.angle / torcsState.steerLock;
+    lastCombinedAction = car->_steerCmd;
     lastDriverAction = driverAction;
 }
 

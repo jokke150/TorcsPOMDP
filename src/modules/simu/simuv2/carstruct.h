@@ -20,6 +20,8 @@
 #ifndef _CAR__H_
 #define _CAR__H_
 
+#include <algorithm>
+
 #include <plib/sg.h>
 #include <SOLID/solid.h>
 
@@ -32,7 +34,7 @@
 #include "transmission.h"
 #include "engine.h"
 
-typedef struct
+typedef struct Car
 {
     /* driver's interface */
     tCarCtrl	*ctrl;
@@ -86,6 +88,110 @@ typedef struct
 
     int		collisionAware;
 	tdble	speed;		// total speed = sqrt(vx*vx + vy*vy + vz*vz) 
+
+    Car() = default;
+
+    Car(const Car& other) = default;
+
+    Car(const Car& other, tCarElt* carElt) : Car(other)
+    {
+        // Update the pointers in the simulator's internal car state to match the new situation
+        this->carElt = carElt;
+        ctrl   = &carElt->ctrl;
+        params = carElt->_carHandle;
+
+        // Update transmission pointers so that they point to this car's values
+        for (int j = 0; j < 2; j++) {
+            transmission.differential[TRANS_FRONT_DIFF].inAxis[j]  = &(wheel[j].feedBack);
+            transmission.differential[TRANS_FRONT_DIFF].outAxis[j] = &(wheel[j].in);
+        }
+
+        for (int j = 0; j < 2; j++) {
+            transmission.differential[TRANS_REAR_DIFF].inAxis[j]  = &(wheel[2+j].feedBack);
+            transmission.differential[TRANS_REAR_DIFF].outAxis[j] = &(wheel[2+j].in);
+        }
+
+        transmission.differential[TRANS_CENTRAL_DIFF].inAxis[0]  = &(transmission.differential[TRANS_FRONT_DIFF].feedBack);
+        transmission.differential[TRANS_CENTRAL_DIFF].outAxis[0] = &(transmission.differential[TRANS_FRONT_DIFF].in);
+        
+        transmission.differential[TRANS_CENTRAL_DIFF].inAxis[1]  = &(transmission.differential[TRANS_REAR_DIFF].feedBack);
+        transmission.differential[TRANS_CENTRAL_DIFF].outAxis[1] = &(transmission.differential[TRANS_REAR_DIFF].in);
+    };
+
+    Car& operator=(const Car& other)
+    {
+        if (this == &other) return *this;
+
+        preCtrl = other.preCtrl;
+        std::copy_n(other.axle, 2, axle);
+        std::copy_n(other.wheel, 4, wheel);
+        steer = other.steer;
+        brkSyst = other.brkSyst;
+        aero = other.aero;
+        std::copy_n(other.wing, 2, wing);
+        transmission = other.transmission;	
+        engine = other.engine;
+
+        /* static */
+        dimension = other.dimension;
+        mass = other.mass;		
+        Minv = other.Minv;		
+        tank = other.tank;		
+        statGC = other.statGC;	
+        Iinv = other.Iinv;		
+
+        /* dynamic */
+        fuel = other.fuel;		
+        DynGC = other.DynGC;		
+        DynGCg = other.DynGCg;		
+        VelColl = other.VelColl;	
+        preDynGC = other.preDynGC;	
+        trkPos = other.trkPos;		
+        airSpeed2 = other.airSpeed2;	
+
+        /* internals */
+        Cosz = other.Cosz;
+        Sinz = other.Sinz;
+        std::copy_n(other.corner, 4, corner);
+        collision = other.collision;
+        normal = other.normal;
+        collpos = other.collpos;
+        wheelbase = other.wheelbase;
+        wheeltrack = other.wheeltrack;
+        std::copy(&other.posMat[0][0], &other.posMat[0][0]+4*4,&posMat[0][0]);
+        shape = other.shape;		
+        blocked = other.blocked;		
+        dammage = other.dammage;
+        
+        restPos = other.restPos;	
+
+        collisionAware = other.collisionAware;
+        speed = other.speed;		
+
+        // Update the pointers in the simulator's internal car state to match the new situation
+        carElt = other.carElt;
+        ctrl   = &carElt->ctrl;
+        params = carElt->_carHandle;
+
+        // Update transmission pointers so that they point to this car's values
+        for (int j = 0; j < 2; j++) {
+            transmission.differential[TRANS_FRONT_DIFF].inAxis[j]  = &(wheel[j].feedBack);
+            transmission.differential[TRANS_FRONT_DIFF].outAxis[j] = &(wheel[j].in);
+        }
+
+        for (int j = 0; j < 2; j++) {
+            transmission.differential[TRANS_REAR_DIFF].inAxis[j]  = &(wheel[2+j].feedBack);
+            transmission.differential[TRANS_REAR_DIFF].outAxis[j] = &(wheel[2+j].in);
+        }
+
+        transmission.differential[TRANS_CENTRAL_DIFF].inAxis[0]  = &(transmission.differential[TRANS_FRONT_DIFF].feedBack);
+        transmission.differential[TRANS_CENTRAL_DIFF].outAxis[0] = &(transmission.differential[TRANS_FRONT_DIFF].in);
+        
+        transmission.differential[TRANS_CENTRAL_DIFF].inAxis[1]  = &(transmission.differential[TRANS_REAR_DIFF].feedBack);
+        transmission.differential[TRANS_CENTRAL_DIFF].outAxis[1] = &(transmission.differential[TRANS_REAR_DIFF].in);
+
+        return *this;
+    }
 } tCar;
 
 #if 0

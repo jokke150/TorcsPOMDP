@@ -518,7 +518,7 @@ bool PomcpPlanner<S,Z,A,B>::moveTo(unsigned actionIndex, const Z& observation)
 			if (observation == sObservation) {
 				it->second->belief.add(nextState);
 			}
-		} while (timer.elapsed()<resamplingTimeout);
+		} while (timer.elapsed() < resamplingTimeout);
 		Node<S,Z,B>* nextRoot = it->second;
 		boost::thread freeMemThread(eraseNodeAndChilds,edge,root);
 		root = nextRoot;
