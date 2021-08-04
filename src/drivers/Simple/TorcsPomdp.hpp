@@ -6,7 +6,6 @@
 #include <carstruct.h>
 
 #include "sensors.h"
-#include "DriverModel.hpp"
 #include "Discretizer.hpp"
 
 namespace pomdp
@@ -25,7 +24,42 @@ namespace pomdp
 #define PENALTY_OFF_LANE -10.0
 #define PENALTY_INTENSITY_EXP 2
 
+#define NUM_ANGLE_BINS 101; // Must be an odd number!
+#define NUM_MIDDLE_BINS 101; // Must be an odd number!
+#define START_BIN_SIZE 0.05f;
 #define TERMINAL_OFF_LANE_DIST 1.05
+
+struct DriverModelState
+{
+    bool isDistracted;
+    double timeEpisodeEnd;
+    float action;
+};
+
+struct TorcsState
+{
+    TorcsState(tSituation& s);
+    TorcsState(float angle, double currentTime, float steerLock);
+    float angle;
+    double currentTime;
+    float steerLock;
+};
+
+inline
+TorcsState::TorcsState(tSituation& s) {
+    tCarElt* car = s.cars[0];
+    const float SC = 1.0;
+    angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
+    NORM_PI_PI(angle); // normalize the angle between -PI and + PI
+    angle -= SC * car->_trkPos.toMiddle / car->_trkPos.seg->width;
+    currentTime = s.currentTime;
+    steerLock = car->_steerLock;
+}
+
+inline
+TorcsState::TorcsState(float angle, double currentTime, float steerLock) : angle{ angle }, currentTime{ currentTime }, steerLock{ steerLock } {}
+
+typedef float Action;
 
 typedef struct State 
 {   
@@ -99,15 +133,17 @@ public:
     float lastDriverAction;
     int numActions;
 
+    static const inline std::vector<Action> actions{ -1, -0.6, -0.2, -0.1, 0, 0.1, 0.2, 0.6, 1 };
+
 private:
     // static const int numSensors;
     //static const float sensorRange; 
     // static const std::vector<float> trackSensAngle;
     // static Sensors *trackSensors;
     // static const std::vector<float> sensorBins;
-    static const int numAngleBins = 100001; // Must be an odd number!
-    static const int numMiddleBins = 100001; // Must be an odd number!
-    static constexpr float startBinSize = 0.05f;
+    static const int numAngleBins = NUM_ANGLE_BINS; // Must be an odd number!
+    static const int numMiddleBins = NUM_MIDDLE_BINS; // Must be an odd number!
+    static constexpr float startBinSize = START_BIN_SIZE;
     static const std::vector<float> angleBins;
     static const std::vector<float> middleBins;
 };
@@ -152,7 +188,7 @@ const std::vector<float> Observation::middleBins = [](){ // [neg. out of lane, -
 }();
 
 inline
-Observation::Observation(tSituation& situation, float lastDriverAction, int numActions) : lastDriverAction{ lastDriverAction }, numActions{ numActions }
+Observation::Observation(tSituation& situation, float driverAction, int numActions) : numActions{ numActions }
 {
     tCarElt *car = situation.cars[0];
 
@@ -175,6 +211,9 @@ Observation::Observation(tSituation& situation, float lastDriverAction, int numA
     //         trackSensorData.push_back(-1);
     //     }
     // }
+
+    // Discretize last driver action
+    lastDriverAction = utils::Discretizer::discretize(Observation::actions, driverAction);
 
     // Compute distance to middle
     distToMiddle = 2 * car->_trkPos.toMiddle / (car->_trkPos.seg->width);
@@ -228,8 +267,6 @@ namespace std {
 
 namespace pomdp {
 
-typedef float Action;
-
 class RewardCalculator 
 {
 public:
@@ -243,7 +280,7 @@ private:
 inline
 double RewardCalculator::reward(const tSituation& situation, const Action& action) {
     // return rewardPosition(absDistToMiddle) - penaltyActionIntensity(action, absDistToMiddle);
-    return rewardAngle(situation) * (1 - 0.5 * abs(action));
+    return rewardAngle(situation);
 }
 
 inline

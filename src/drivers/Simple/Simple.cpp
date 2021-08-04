@@ -48,7 +48,6 @@ static PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>>* pla
 
 static DriverModel* driverModel = nullptr;
 
-static std::vector<Action> actions{ -1, -0.6, -0.2, -0.1, 0, 0.1, 0.2, 0.6, 1 };
 static unsigned int runs = 0;
 static unsigned long actionsCount;
 static unsigned int lastActIdx;
@@ -154,7 +153,7 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
     }
 
     if (!simulator) {
-        simulator = new TorcsSimulator{ actions, *s, *ReInfo };
+        simulator = new TorcsSimulator{ *s, *ReInfo };
         planner = new PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>>{ *simulator, PLANNING_TIME, RESAMPLING_TIME, THRESHOLD, EXPLORATION_CTE, PARTICLES };   
         driverModel = new DriverModel(s->currentTime);
     }
@@ -187,7 +186,7 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
         std::cout<<"Driver state duration: "<<driverModel->getState().timeEpisodeEnd<<std::endl;
         std::cout<<"Optimal: "<<lastOptimalAction<<std::endl;
         std::cout<<"Combined: "<<lastCombinedAction<<std::endl;
-        std::cout<<"Agent: "<<actions[lastActIdx]<<std::endl;
+        std::cout<<"Agent: "<<Observation::actions[lastActIdx]<<std::endl;
         std::cout<<"Driver: "<<lastDriverAction<<std::endl;
 
         planner->moveTo(lastActIdx, obs);
@@ -195,14 +194,15 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
         // Calculate and sum up reward
         // discount *= simulator->getDiscount();
         // reward  += discount * RewardCalculator::reward(*s, actions[lastActIdx]);
-        reward += RewardCalculator::reward(*s, actions[lastActIdx]);
+        reward += RewardCalculator::reward(*s, Observation::actions[lastActIdx]);
     }
     int agentActionIdx = planner->getAction();
-    float agentAction = actions[agentActionIdx];
+    float agentAction = Observation::actions[agentActionIdx];
 
     // // Determine driver's action (discretized)
     driverModel->update(torcsState);
-    float driverAction = utils::Discretizer::discretize(actions, driverModel->getAction());
+    // float driverAction = utils::Discretizer::discretize(actions, driverModel->getAction;
+    float driverAction = driverModel->getAction();
 
     // Combine steering actions
     // car->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction);

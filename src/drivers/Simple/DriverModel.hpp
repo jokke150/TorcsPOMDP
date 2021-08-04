@@ -2,39 +2,10 @@
 #include <robottools.h>
 
 #include "Random.hpp"
+#include "TorcsPomdp.hpp"
 
 namespace pomdp
 {
-
-struct DriverModelState
-{
-    bool isDistracted;
-    double timeEpisodeEnd;
-    float action;
-};
-
-struct TorcsState
-{
-    TorcsState(tSituation& s);
-    TorcsState(float angle, double currentTime, float steerLock);
-    float angle;
-    double currentTime;
-    float steerLock;
-};
-
-inline
-TorcsState::TorcsState(tSituation& s) {
-    tCarElt* car = s.cars[0];
-    const float SC = 1.0;
-    angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
-    NORM_PI_PI(angle); // normalize the angle between -PI and + PI
-    angle -= SC * car->_trkPos.toMiddle / car->_trkPos.seg->width;
-    currentTime = s.currentTime;
-    steerLock = car->_steerLock;
-}
-
-inline
-TorcsState::TorcsState(float angle, double currentTime, float steerLock) : angle{ angle }, currentTime{ currentTime }, steerLock{ steerLock } {}
 
 // TODO: Refactor to abstract class and inherit with SimpleDriverModel
 class DriverModel
@@ -87,8 +58,18 @@ void DriverModel::update(TorcsState& torcsState) {
 
 inline 
 DriverModelState DriverModel::sampleState(double currentTime) {
-    double duration = utils::RANDOM.getSigned(minAttentionDuration, maxAttentionDuration);
-    return DriverModelState{ false, currentTime + duration, -2 };
+    bool isDistracted = utils::RANDOM.getBool();
+    double duration;
+    float action;
+    if (isDistracted) {
+        duration = utils::RANDOM.getSigned(minDistractionDuration, maxDistractionDuration);
+        action = utils::RANDOM(Observation::actions.size());
+    } else {
+        duration = utils::RANDOM.getSigned(minAttentionDuration, maxAttentionDuration);
+        action = -2;
+    }
+    
+    return DriverModelState{isDistracted, currentTime + duration, action };
 }
 
 inline 

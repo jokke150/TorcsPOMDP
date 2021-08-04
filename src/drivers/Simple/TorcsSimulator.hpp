@@ -7,7 +7,7 @@
 #include "MonteCarloSimulator.hpp"
 #include "Random.hpp"
 #include "Pomcp.hpp"
-#include "TorcsPomdp.hpp"
+#include "DriverModel.hpp"
 
 using namespace pomcp;
 
@@ -24,29 +24,25 @@ class TorcsSimulator : public Simulator<State, Observation, Action>
 {
 public:
 	/**
-	* @param actions: Reference to the action space.
 	* @param raceEngineInfo: Information about race engine, e.g. the track. Needed for init of generative model.
 	* @param initSituation: Reference to the initial torcs state
     * Create a new simulator
     */
-	TorcsSimulator(const std::vector<Action>& actions, tSituation& initSituation, tRmInfo& raceEngineInfo);
+	TorcsSimulator(tSituation& situation, tRmInfo& raceEngineInfo);
 	virtual ~TorcsSimulator();
 	virtual double getDiscount() const {return DISCOUNT;}
 	virtual State& sampleInitialState(State& state) const;
 	virtual bool simulate(const State& state, unsigned actionIndex, State& nextState, Observation& observation, double& reward,unsigned depth) const;
 	virtual bool simulate(const State& state, unsigned actionIndex, State& nextState, double& reward,unsigned depth) const;
-	virtual unsigned getNumActions() const {return actions.size();}
-	virtual const Action& getAction(unsigned actionIndex) const {return actions[actionIndex];}
+	virtual unsigned getNumActions() const {return Observation::actions.size();}
+	virtual const Action& getAction(unsigned actionIndex) const {return Observation::actions[actionIndex];}
 	virtual bool allActionsAreValid(const State& state) const {return true;}
 	virtual bool isValidAction(const State& state, unsigned actionIndex) const {return true;}
 
 	void test(const State& origState) const; // TODO: Remove
 private:
-	const std::vector<Action>& actions;
 	tRmInfo& raceEngineInfo;
-	tCar initEnvState;
-	tSituation initSituation;
-	tSituation& initRef;
+	tSituation& realSituation;
 	
 	// Generative model
 	tModList *modList = 0;
@@ -55,21 +51,22 @@ private:
 };
 
 inline
-TorcsSimulator::TorcsSimulator(const std::vector<Action>& actions, tSituation& initSituation, tRmInfo& raceEngineInfo) 
-	: actions{actions}, raceEngineInfo{raceEngineInfo}, initSituation{initSituation}, initRef{ initSituation }
+TorcsSimulator::TorcsSimulator(tSituation& situation, tRmInfo& raceEngineInfo) 
+	: raceEngineInfo{raceEngineInfo}, realSituation{situation}
 {
-	raceEngineInfo._reSimItf.getState(&initEnvState);
 	loadGenModel();
 }
 
 inline
 TorcsSimulator::~TorcsSimulator() {}
 
-inline
+inline   
 State& TorcsSimulator::sampleInitialState(State& state) const
 {
-	DriverModelState modelState = DriverModel::sampleState(initSituation.currentTime);
-	state = State{ initSituation, initEnvState, modelState, 0 };
+	tCar initEnvState;
+	raceEngineInfo._reSimItf.getState(&initEnvState);
+	DriverModelState modelState = DriverModel::sampleState(realSituation.currentTime);
+	state = State{ realSituation, initEnvState, modelState, 0 };
 	return state;
 }
 
@@ -86,7 +83,8 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 	// Get driver's action
 	TorcsState torcsState{ *situation };
 	DriverModel::updateInPlace(torcsState, nextState.modelState);
-	float driverAction = utils::Discretizer::discretize(actions, nextState.modelState.action);
+	// float driverAction = utils::Discretizer::discretize(actions, nextState.modelState.action);
+	float driverAction = nextState.modelState.action;
 
 	// Combine steering actions
     // situation->cars[0]->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction);
@@ -126,7 +124,7 @@ void TorcsSimulator::test(const State& origState) const {
 		float steerLock = carElt->_steerLock;
     	carElt->_steerCmd = angle / steerLock;
 
-		initRef.cars[0]->_steerCmd = carElt->_steerCmd;
+		realSituation.cars[0]->_steerCmd = carElt->_steerCmd;
 
 		// Set simulator's internal car state
 		genModel.setState(&nextState.car);
@@ -140,8 +138,8 @@ void TorcsSimulator::test(const State& origState) const {
 
 		elapsed = 0;
 		while (elapsed <= RCM_MAX_DT_ROBOTS + RCM_MAX_DT_SIMU) {
-			raceEngineInfo._reSimItf.update(&initRef, RCM_MAX_DT_SIMU, -1);
-			initRef.currentTime += RCM_MAX_DT_SIMU;
+			raceEngineInfo._reSimItf.update(&realSituation, RCM_MAX_DT_SIMU, -1);
+			realSituation.currentTime += RCM_MAX_DT_SIMU;
 			elapsed += RCM_MAX_DT_SIMU;
 		}
 
@@ -149,7 +147,7 @@ void TorcsSimulator::test(const State& origState) const {
 		raceEngineInfo._reSimItf.getState(&realCar); 
 
 		Observation obs = Observation(*situation, 0, 1);
-		Observation obs1 = Observation(initRef, 0, 1);
+		Observation obs1 = Observation(realSituation, 0, 1);
 	
 		nextState = State{ nextState };
 	}
