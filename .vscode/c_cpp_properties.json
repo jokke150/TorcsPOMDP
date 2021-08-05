@@ -3,21 +3,13 @@
         {
             "name": "Linux",
             "includePath": [
-                "/home/jokke/Repositories/boost_1_76_0",
-                "/home/jokke/Repositories/TorcsPOMDP/src/**",
-                "/home/jokke/Repositories/TorcsPOMDP/export/include/**"
+                "${workspaceFolder}/**"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",
-            "cStandard": "c11",
-            "cppStandard": "c++11",
+            "cStandard": "gnu17",
+            "cppStandard": "gnu++14",
             "intelliSenseMode": "linux-gcc-x64",
-            "browse": {
-                "limitSymbolsToIncludedHeaders": true,
-                "path": [
-                    "${workspaceFolder}"
-                ]
-            },
             "configurationProvider": "ms-vscode.makefile-tools"
         }
     ],

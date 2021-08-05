@@ -1,0 +1,2 @@
+TORCS_BASE = /home/jokke/Repositories/TorcsPOMDP/torcs
+MAKE_DEFAULT = /home/jokke/Repositories/TorcsPOMDP/torcs/Make-default.mk

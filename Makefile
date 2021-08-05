@@ -1,125 +1,101 @@
-##############################################################################
 #
-#    file                 : Makefile
-#    created              : Mon Dec 11 22:30:53 CET 2000
-#    copyright            : (C) 2000 by Eric Espié
-#    email                : Eric.Espie@torcs.org
-#    version              : $Id: Makefile,v 1.29.2.1 2008/09/03 21:49:41 berniw Exp $
+# 'make'        build executable file 'main'
+# 'make clean'  removes all .o and executable files
 #
-##############################################################################
-#
-#   This program is free software; you can redistribute it and/or modify
-#   it under the terms of the GNU General Public License as published by
-#   the Free Software Foundation; either version 2 of the License, or
-#   (at your option) any later version.
-#
-##############################################################################
 
+# define the Cpp compiler to use
+CXX = g++
 
-# #### The Open Racing Car Simulator ####
+# define any compile-time flags
+CXXFLAGS	:= -std=c++17 -Wall -Wextra -g
 
-ifndef TORCS_BASE
+# define library paths in addition to /usr/lib
+#   if I wanted to include libraries not in /usr/lib I'd specify
+#   their path using -Lpath, something like:
+LFLAGS =
 
-TORCS_BASE = $(shell pwd)
-MAKE_DEFAULT = ${TORCS_BASE}/Make-default.mk
-TORCS_RC = ${TORCS_BASE}/.torcs.rc
+# define output directory
+OUTPUT	:= output
 
--include Make-config
+# define source directory
+SRC		:= src
 
-restart:
-	@echo "TORCS_BASE = ${TORCS_BASE}" > ${TORCS_RC}
-	@echo "MAKE_DEFAULT = ${MAKE_DEFAULT}" >> ${TORCS_RC}
-	${MAKE} TORCS_BASE=${TORCS_BASE} MAKE_DEFAULT=${MAKE_DEFAULT}
+# define include directory
+INCLUDE	:= include
 
+# define torcs include directory
+TORCSINC := torcs/export/include
+
+# define lib directory
+LIB		:= lib
+
+# define torcs lib directory
+TORCSLIB := torcs/export/lib
+
+ifeq ($(OS),Windows_NT)
+MAIN	:= main.exe
+SOURCEDIRS	:= $(SRC)
+INCLUDEDIRS	:= $(INCLUDE)
+TORCSINCDIRS	:= $(TORCSINC)
+LIBDIRS		:= $(LIB)
+TORCSLIBDIRS	:= $(TORCSLIB)
+FIXPATH = $(subst /,\,$1)
+RM			:= del /q /f
+MD	:= mkdir
+else
+MAIN	:= main
+SOURCEDIRS	:= $(shell find $(SRC) -type d)
+INCLUDEDIRS	:= $(shell find $(INCLUDE) -type d)
+TORCSINCDIRS   := $(shell find $(TORCSINC) -type d)
+LIBDIRS		:= $(shell find $(LIB) -type d)
+TORCSLIBDIRS   := $(shell find $(TORCSLIB) -type d)
+FIXPATH = $1
+RM = rm -f
+MD	:= mkdir -p
 endif
 
-ifndef MAKE_DEFAULT
+# define any directories containing header files other than /usr/include
+INCLUDES	:= $(patsubst %,-I%, $(INCLUDEDIRS:%/=%)) $(patsubst %,-I%, $(TORCSINCDIRS:%/=%))
 
-MAKE_DEFAULT = ${TORCS_BASE}/Make-default.mk
+# define the C libs
+LIBS		:= $(patsubst %,-L%, $(LIBDIRS:%/=%)) $(patsubst %,-L%, $(TORCSLIBDIRS:%/=%))
 
--include Make-config
+# define the C source files
+SOURCES		:= $(wildcard $(patsubst %,%/*.cpp, $(SOURCEDIRS)))
 
-restart2:
-	${MAKE} TORCS_BASE=${TORCS_BASE} MAKE_DEFAULT=${MAKE_DEFAULT}
+# define the C object files 
+OBJECTS		:= $(SOURCES:.cpp=.o)
 
-endif
+#
+# The following part of the makefile is generic; it can be used to 
+# build any executable just by changing the definitions above and by
+# deleting dependencies appended to the file from 'make depend'
+#
 
-PKGLIST		= src \
-		  src-robots-base \
-		  data \
-		  data-cars-extra \
-		  data-cars-Patwo-Design \
-		  data-cars-kcendra-gt \
-		  data-cars-kcendra-sport \
-		  data-cars-kcendra-roadsters \
-		  data-tracks-road \
-		  data-tracks-oval \
-		  data-tracks-dirt \
-		  data-devel
+OUTPUTMAIN	:= $(call FIXPATH,$(OUTPUT)/$(MAIN))
 
-DATASUBDIRS	= data
+all: $(OUTPUT) $(MAIN)
+	@echo Executing 'all' complete!
 
-SHIPSUBDIRS	= src
+$(OUTPUT):
+	$(MD) $(OUTPUT)
 
-SHIPEXECSUBDIRS	= src
+$(MAIN): $(OBJECTS) 
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -o $(OUTPUTMAIN) $(OBJECTS) $(LFLAGS) $(LIBS)
 
-EXPINCDIRS	= src
+# this is a suffix replacement rule for building .o's from .c's
+# it uses automatic variables $<: the name of the prerequisite of
+# the rule(a .c file) and $@: the name of the target of the rule (a .o file) 
+# (see the gnu make manual section about automatic variables)
+.cpp.o:
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $<  -o $@
 
-TOOLSUBDIRS	= src
+.PHONY: clean
+clean:
+	$(RM) $(OUTPUTMAIN)
+	$(RM) $(call FIXPATH,$(OBJECTS))
+	@echo Cleanup complete!
 
-SUBDIRS		= src
-
-DATADIR 	= .
-
-DATA    	= COPYING Ticon.png Ticon.ico tux.png logo-skinner.png
-
-SHIPEXECDIR	= .
-
-SHIPEXEC	= setup_linux.sh
-
-PKGSUBDIRS	= src data
-
-src_PKGFILES	= $(shell find * -maxdepth 0 -type f -print | grep -v TAGS | grep -v torcstune.jar)
-
-src_PKGDIR	= ${PACKAGE}-${VERSION}
-
--include ${MAKE_DEFAULT}
-
-Make-config: configure Make-config.in
-	rm -f config.status config.log config.cache
-	./configure
-	rm -f config.status config.log config.cache
-
-configure: configure.in config.h.in aclocal.m4
-	rm -f config.status config.log config.cache
-	autoheader
-	autoconf
-
-aclocal.m4: acinclude.m4
-	aclocal
-
-distclean: clean
-	rm -f config.status config.log config.cache
-	rm -f setup_linux.sh
-	rm -rf ${EXPORTBASE}
-	rm -rf ${PACKAGESBASE}/*
-	rm -rf ${SPECFILESBASE}/*
-
-cleanconfig: clean
-	rm -f config.status config.log config.cache
-	rm -f Make-config configure aclocal.m4
-
-doc:
-	rm -rf ${DOCBASE}/manual/api/*.html
-	mkdir -p ${DOCBASE}/manual/api
-	doxygen ${SOURCEBASE}/doc/torcsdoc.conf
-
-tags:
-	rm -f ${TORCS_BASE}/TAGS
-	find ${TORCS_BASE}/src -name '*.h' -exec etags -a {} \;
-	find /usr/include/plib -name '*.h' -exec etags -a {} \;
-	find ${TORCS_BASE}/src -name '*.cpp' -exec etags -a {} \;
-	find ${TORCS_BASE}/src -name '*.c' -exec etags -a {} \;
-
-setup_linux.sh: linuxsetup
-	@chmod +x setup_linux.sh
+run: all
+	./$(OUTPUTMAIN)
+	@echo Executing 'run: all' complete!
