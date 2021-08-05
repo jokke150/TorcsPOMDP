@@ -1,6 +1,5 @@
 *.so
 *.o
-export/*
 *.depend
 *.spec
 *~
@@ -8,5 +7,6 @@ export/*
 *.log
 *.status
 *.a
-OldDrivers
-build/*
+torcs/OldDrivers
+torcs/build/*
+torcs/export/*

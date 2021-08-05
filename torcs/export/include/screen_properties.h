@@ -1,1 +1,0 @@
-/home/jokke/Repositories/TorcsPOMDP/torcs/src/libs/tgfclient/screen_properties.h
