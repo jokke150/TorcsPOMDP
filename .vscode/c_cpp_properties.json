@@ -3,6 +3,9 @@
         {
             "name": "Linux",
             "includePath": [
+                "/home/jokke/Repositories/boost_1_76_0",
+                "${workspaceFolder}/torcs/export/include/**",
+                "${workspaceFolder}/torcs/src/linux/**",
                 "${workspaceFolder}/**"
             ],
             "defines": [],

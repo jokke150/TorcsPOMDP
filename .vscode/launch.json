@@ -1,0 +1,59 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "args": [],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "externalConsole": false,
+            "linux": {
+                "MIMode": "gdb",
+                "miDebuggerPath": "gdb",
+                "program": "${workspaceFolder}/output/main"
+            },
+            "osx": {
+                "MIMode": "lldb",
+                "miDebuggerPath": "lldb-mi",
+                "program": "${workspaceFolder}/output/main"
+            },
+            "windows": {
+                "MIMode": "gdb",
+                "miDebuggerPath": "gdb.exe",
+                "program": "${workspaceFolder}/output/main.exe"
+            },
+            "preLaunchTask": "build"
+        },
+        {
+            "name": "debug torcs",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/torcs/build/lib/torcs/torcs-bin",
+            "args": ["-L", "${workspaceFolder}/torcs/build/lib/torcs", "-D", "${workspaceFolder}/torcs/build/share/games/torcs"],
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}/torcs/build/share/games/torcs",
+            "environment": [
+                {
+                    "name": "LD_LIBRARY_PATH",
+                    "value": "LD_LIBRARY_PATH:${workspaceFolder}/torcs/build/lib/torcs/lib"
+                }
+            ],
+            "externalConsole": false,
+            "MIMode": "gdb",
+            "setupCommands": [
+                {
+                    "description": "Enable pretty-printing for gdb",
+                    "text": "-enable-pretty-printing",
+                    "ignoreFailures": true
+                }
+            ],
+            // "preLaunchTask": "g++ build active file",
+            "miDebuggerPath": "/usr/bin/gdb",
+            //"miDebuggerArgs": "-l /home/jokke/.torcs",
+            "logging": { "trace": true, "traceResponse": true }
+        }
+    ]
+}
