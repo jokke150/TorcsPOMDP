@@ -9,7 +9,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build//lib/torcs/torcs-bin",
-            "args": ["-L", "${workspaceFolder}/build/lib/torcs", "-D", "${workspaceFolder}/build/share/games/torcs"],
+            "args": ["-L", "${workspaceFolder}/build/lib/torcs", "-D", "${workspaceFolder}/build/share/games/torcs", "-r", "${workspaceFolder}/build/share/games/torcs/config/raceman/quickrace.xml", "-d"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}/build/share/games/torcs",
             "environment": [

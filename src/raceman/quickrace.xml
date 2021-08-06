@@ -46,10 +46,10 @@
     <attstr name="restart" val="yes"/>
     <attstr name="display mode" val="results only"/>
     <section name="Starting Grid">
-      <attnum name="rows" val="2"/>
-      <attnum name="distance to start" val="25"/>
-      <attnum name="distance between columns" val="20"/>
-      <attnum name="offset within a column" val="10"/>
+      <attnum name="rows" val="1"/>
+      <attnum name="distance to start" val="0"/>
+      <attnum name="distance between columns" val="0"/>
+      <attnum name="offset within a column" val="0"/>
       <attnum name="initial speed" val="0"/>
       <attnum name="initial height" val="0.2"/>
     </section>

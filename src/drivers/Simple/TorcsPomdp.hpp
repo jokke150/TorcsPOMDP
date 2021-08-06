@@ -24,8 +24,8 @@ namespace pomdp
 #define PENALTY_OFF_LANE -10.0
 #define PENALTY_INTENSITY_EXP 2
 
-#define NUM_ANGLE_BINS 101; // Must be an odd number!
-#define NUM_MIDDLE_BINS 101; // Must be an odd number!
+#define NUM_ANGLE_BINS 1001; // Must be an odd number!
+#define NUM_MIDDLE_BINS 1001; // Must be an odd number!
 #define START_BIN_SIZE 0.05f;
 #define TERMINAL_OFF_LANE_DIST 1.05
 

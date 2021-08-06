@@ -177,6 +177,8 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
         std::cout<<"Count: "<<actionsCount<<std::endl;
         std::cout<<"Size: "<<size<<std::endl;
 		std::cout<<"Depth: "<<depth<<std::endl;
+        std::cout<<"Speed: "<<speed<<std::endl;
+        std::cout<<"From Start: "<<obs.distToStart<<std::endl;
         std::cout<<"Angle: "<<obs.angle<<std::endl;
         std::cout<<"Reward: "<<reward<<std::endl;
         double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
@@ -201,14 +203,14 @@ drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 
     // // Determine driver's action (discretized)
     driverModel->update(torcsState);
-    // float driverAction = utils::Discretizer::discretize(actions, driverModel->getAction;
-    float driverAction = driverModel->getAction();
+    float driverAction = utils::Discretizer::discretize(Observation::actions, driverModel->getAction());
+    // float driverAction = driverModel->getAction();
 
     // Combine steering actions
-    // car->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction);
+    car->_steerCmd = utils::Discretizer::discretize(Observation::actions, driverAction + agentAction);
     // car->_steerCmd = agentAction;
     // car->_steerCmd = driverAction;
-    car->_steerCmd = std::max(std::min(driverAction + agentAction, 1.0f), -1.0f);
+    // car->_steerCmd = std::max(std::min(driverAction + agentAction, 1.0f), -1.0f);
 
     actionsCount++;
     lastActIdx = agentActionIdx;
