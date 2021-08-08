@@ -8,13 +8,15 @@
 #include "sensors.h"
 #include "Discretizer.hpp"
 
+using std::vector;
+
 namespace pomdp
 {
 
 // HYPERPARAMETERS
 // TODO: Tune
-#define PLANNING_TIME 1
-#define RESAMPLING_TIME 1
+// #define PLANNING_TIME 0.1
+#define RESAMPLING_TIME 0.1
 #define THRESHOLD 1
 #define EXPLORATION_CTE 100
 #define PARTICLES 100000
@@ -24,10 +26,21 @@ namespace pomdp
 #define PENALTY_OFF_LANE -10.0
 #define PENALTY_INTENSITY_EXP 2
 
-#define NUM_ANGLE_BINS 1001; // Must be an odd number!
-#define NUM_MIDDLE_BINS 1001; // Must be an odd number!
+// #define NUM_ANGLE_BINS 1001; // Must be an odd number!
+// #define NUM_MIDDLE_BINS 1001; // Must be an odd number!
 #define START_BIN_SIZE 0.05f;
 #define TERMINAL_OFF_LANE_DIST 1.05
+
+typedef float Action;
+
+// Grid search
+// static const vector<vector<Action>> actionsScenarios{ {-1, -0.5, 0, 0.5, 1}, {-1, -0.5, -0.25, -0.1, 0, 0.1, 0.25, 0.5, 1} };
+static const vector<vector<Action>> actionsScenarios{ {-1, -0.5, -0.25, -0.1, 0, 0.1, 0.25, 0.5, 1} };
+// static const vector<double> planningTimesScenarios{ 0.1, 0.5, 1 };
+static const vector<double> planningTimesScenarios{ 0.1, 1 };
+// static const vector<int> binsScenarios{ 101, 1001, 10001 };
+static const vector<int> binsScenarios{ 101, 10001 };
+
 
 struct DriverModelState
 {
@@ -58,8 +71,6 @@ TorcsState::TorcsState(tSituation& s) {
 
 inline
 TorcsState::TorcsState(float angle, double currentTime, float steerLock) : angle{ angle }, currentTime{ currentTime }, steerLock{ steerLock } {}
-
-typedef float Action;
 
 typedef struct State 
 {   
@@ -123,34 +134,33 @@ class Observation
 {   
 public:
     Observation() = default;
-    Observation(tSituation& situation, float lastDriverAction, int numActions);
+    Observation(tSituation& situation, float lastDriverAction, int numActions, vector<Action>& actions);
     bool operator==(Observation const& other) const;
+    
+    static void setAngleBins(int numAngleBins);
+    static void setMiddleBins(int numMiddleBins);
 
-    // std::vector<float> trackSensorData;
+    // vector<float> trackSensorData;
     float angle;
     float distToMiddle;
     float distToStart;
     float lastDriverAction;
     int numActions;
 
-    static const inline std::vector<Action> actions{ -1, -0.6, -0.2, -0.1, 0, 0.1, 0.2, 0.6, 1 };
-
 private:
     // static const int numSensors;
     //static const float sensorRange; 
-    // static const std::vector<float> trackSensAngle;
+    // static const vector<float> trackSensAngle;
     // static Sensors *trackSensors;
-    // static const std::vector<float> sensorBins;
-    static const int numAngleBins = NUM_ANGLE_BINS; // Must be an odd number!
-    static const int numMiddleBins = NUM_MIDDLE_BINS; // Must be an odd number!
+    // static const vector<float> sensorBins;
     static constexpr float startBinSize = START_BIN_SIZE;
-    static const std::vector<float> angleBins;
-    static const std::vector<float> middleBins;
+    static vector<float> angleBins; // [-PI, ..., PI]
+    static vector<float> middleBins; // [neg. out of lane, -1, ..., +1 , pos. out of lane]
 };
 
 // const int Observation::numSensors = 5;
 // const float Observation::sensorRange = 100;
-// const std::vector<float> Observation::trackSensAngle = { -80, -40, 0, 40, 80 };
+// const vector<float> Observation::trackSensAngle = { -80, -40, 0, 40, 80 };
 // Sensors *Observation::trackSensors = [](){
 //     Sensors *s = new Sensors(numSensors);
 //     for (int i = 0; i < numSensors; ++i) {
@@ -158,44 +168,48 @@ private:
 //     }
 //     return s;
 // }();
-// const std::vector<float> Observation::sensorBins = {0.5, 1, 1.5, 2, 2.5, 3.5, 5, 7.5, 10, 15, 20, 25, 30, 50, 100}; // Up-to and including distance, beyond -> -1
+// const vector<float> Observation::sensorBins = {0.5, 1, 1.5, 2, 2.5, 3.5, 5, 7.5, 10, 15, 20, 25, 30, 50, 100}; // Up-to and including distance, beyond -> -1
+
+// inline
+// const vector<float> Observation::angleBins = [](){ // [-PI, ..., PI]
+//     vector<float> bins;
+    // bins.reserve(numAngleBins);
+    // int mult = -(numAngleBins / 2);
+    // for (int i = 0; i < numAngleBins; i++) {
+    //         bins.push_back(mult * (PI / (numAngleBins / 2)));
+    //         mult++;
+    // }
+    // return bins;
+// }();
+
+// inline
+// const vector<float> Observation::middleBins = [](){ // [neg. out of lane, -1, ..., +1 , pos. out of lane]
+//     vector<float> bins;
+//     bins.reserve(numMiddleBins);
+//     int numInLane = numMiddleBins - 2;
+//     bins.push_back(std::nextafter(-1.0f, -2.0f)); // Negative out-of-lane
+//     int mult = -(numInLane / 2);
+//     for (int i = 0; i < numInLane; i++) {
+//             bins.push_back(mult * (1.0f / (numInLane / 2))); // Within lane
+//             mult++;
+//     }
+//     bins.push_back(std::nextafter(1.0f, 2.0f)); // Positive out-of-lane
+//     return bins;
+// }();
+
+inline vector<float> Observation::angleBins = {};
+inline vector<float> Observation::middleBins = {};
 
 inline
-const std::vector<float> Observation::angleBins = [](){ // [-PI, ..., PI]
-    std::vector<float> bins;
-    bins.reserve(numAngleBins);
-    int mult = -(numAngleBins / 2);
-    for (int i = 0; i < numAngleBins; i++) {
-            bins.push_back(mult * (PI / (numAngleBins / 2)));
-            mult++;
-    }
-    return bins;
-}();
-
-inline
-const std::vector<float> Observation::middleBins = [](){ // [neg. out of lane, -1, ..., +1 , pos. out of lane]
-    std::vector<float> bins;
-    bins.reserve(numMiddleBins);
-    int numInLane = numMiddleBins - 2;
-    bins.push_back(std::nextafter(-1.0f, -2.0f)); // Negative out-of-lane
-    int mult = -(numInLane / 2);
-    for (int i = 0; i < numInLane; i++) {
-            bins.push_back(mult * (1.0f / (numInLane / 2))); // Within lane
-            mult++;
-    }
-    bins.push_back(std::nextafter(1.0f, 2.0f)); // Positive out-of-lane
-    return bins;
-}();
-
-inline
-Observation::Observation(tSituation& situation, float driverAction, int numActions) : numActions{ numActions }
+Observation::Observation(tSituation& situation, float driverAction, int numActions, vector<Action>& actions) : 
+    numActions{ numActions }
 {
     tCarElt *car = situation.cars[0];
 
     // Get track sensor output
     // set the value of track sensors only as long as the car is inside the track
     // if (distToMiddle <= 1.0 && distToMiddle >= -1.0) {
-    //     trackSensors->sensors_update(car);
+    //     trackSensors->sensors_update(car);WS
     //     trackSensorData.reserve(numSensors);
     //     for (int i = 0; i < numSensors; ++i) {
     //         float distance = trackSensors->getSensorOut(i);
@@ -213,7 +227,7 @@ Observation::Observation(tSituation& situation, float driverAction, int numActio
     // }
 
     // Discretize last driver action
-    lastDriverAction = utils::Discretizer::discretize(Observation::actions, driverAction);
+    lastDriverAction = utils::Discretizer::discretize(actions, driverAction);
 
     // Compute distance to middle
     distToMiddle = 2 * car->_trkPos.toMiddle / (car->_trkPos.seg->width);
@@ -229,7 +243,7 @@ Observation::Observation(tSituation& situation, float driverAction, int numActio
     angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
     NORM_PI_PI(angle); // normalize the angle between -PI and + PI
     angle -= SC * car->_trkPos.toMiddle / car->_trkPos.seg->width;
-    angle = utils::Discretizer::discretize(angleBins, angle);
+    angle = utils::Discretizer::discretize(Observation::angleBins, angle);
 }
 
 inline
@@ -242,6 +256,31 @@ bool Observation::operator==(Observation const& other) const
     //return angle == other.angle && distToMiddle == other.distToMiddle && distToStart == other.distToStart;
     return angle == other.angle && distToStart == other.distToStart && lastDriverAction == other.lastDriverAction;
     // return angle == other.angle && distToMiddle == other.distToMiddle && distToStart == other.distToStart;
+}
+
+inline
+void Observation::setAngleBins(int numAngleBins) {
+    angleBins.clear();
+    angleBins.reserve(numAngleBins);
+    int mult = -(numAngleBins / 2);
+    for (int i = 0; i < numAngleBins; i++) {
+        angleBins.push_back(mult * (PI / (numAngleBins / 2)));
+        mult++;
+    }
+}
+
+inline
+void Observation::setMiddleBins(int numMiddleBins) {
+    middleBins.clear();
+    middleBins.reserve(numMiddleBins);
+    int numInLane = numMiddleBins - 2;
+    middleBins.push_back(std::nextafter(-1.0f, -2.0f)); // Negative out-of-lane
+    int mult = -(numInLane / 2);
+    for (int i = 0; i < numInLane; i++) {
+        middleBins.push_back(mult * (1.0f / (numInLane / 2))); // Within lane
+        mult++;
+    }
+    middleBins.push_back(std::nextafter(1.0f, 2.0f)); // Positive out-of-lane
 }
 
 }

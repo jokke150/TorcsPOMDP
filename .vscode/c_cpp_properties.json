@@ -5,7 +5,8 @@
             "includePath": [
                 "/home/jokke/Repositories/boost_1_76_0",
                 "/home/jokke/Repositories/TorcsPOMDP/src/**",
-                "/home/jokke/Repositories/TorcsPOMDP/export/include/**"
+                "/home/jokke/Repositories/TorcsPOMDP/export/include/**",
+                "/home/jokke/Repositories/TorcsPOMDP/external/include/**" // TODO: Fix and move includes here
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",

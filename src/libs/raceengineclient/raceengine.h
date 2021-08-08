@@ -34,7 +34,6 @@ extern int  ReUpdate(void);
 extern void ReTimeMod (void *vcmd);
 
 extern tRmInfo	*ReInfo;
-extern int	RESTART; //ML
 
 #endif /* _RACEENGINE_H_ */ 
 

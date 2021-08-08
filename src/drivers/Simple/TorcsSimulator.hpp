@@ -28,14 +28,14 @@ public:
 	* @param initSituation: Reference to the initial torcs state
     * Create a new simulator
     */
-	TorcsSimulator(tSituation& situation, tRmInfo& raceEngineInfo);
+	TorcsSimulator(tSituation& situation, tRmInfo& raceEngineInfo, vector<Action>& actions, vector<Action>& driverActions, int numBins);
 	virtual ~TorcsSimulator();
 	virtual double getDiscount() const {return DISCOUNT;}
 	virtual State& sampleInitialState(State& state) const;
 	virtual bool simulate(const State& state, unsigned actionIndex, State& nextState, Observation& observation, double& reward,unsigned depth) const;
 	virtual bool simulate(const State& state, unsigned actionIndex, State& nextState, double& reward,unsigned depth) const;
-	virtual unsigned getNumActions() const {return Observation::actions.size();}
-	virtual const Action& getAction(unsigned actionIndex) const {return Observation::actions[actionIndex];}
+	virtual unsigned getNumActions() const {return actions.size();}
+	virtual const Action& getAction(unsigned actionIndex) const {return actions[actionIndex];}
 	virtual bool allActionsAreValid(const State& state) const {return true;}
 	virtual bool isValidAction(const State& state, unsigned actionIndex) const {return true;}
 
@@ -43,6 +43,9 @@ public:
 private:
 	tRmInfo& raceEngineInfo;
 	tSituation& realSituation;
+	vector<Action>& actions;
+	vector<Action>& driverActions;
+	int numBins;
 	
 	// Generative model
 	tModList *modList = 0;
@@ -51,21 +54,23 @@ private:
 };
 
 inline
-TorcsSimulator::TorcsSimulator(tSituation& situation, tRmInfo& raceEngineInfo) 
-	: raceEngineInfo{raceEngineInfo}, realSituation{situation}
+TorcsSimulator::TorcsSimulator(tSituation& situation, tRmInfo& raceEngineInfo, vector<Action>& actions, vector<Action>& driverActions, int numBins) 
+	: raceEngineInfo{raceEngineInfo}, realSituation{situation}, actions{ actions }, driverActions{ driverActions }, numBins{ numBins }
 {
 	loadGenModel();
 }
 
 inline
-TorcsSimulator::~TorcsSimulator() {}
+TorcsSimulator::~TorcsSimulator() {
+	GfModUnloadList(&modList);
+}
 
 inline   
 State& TorcsSimulator::sampleInitialState(State& state) const
 {
 	tCar initEnvState;
 	raceEngineInfo._reSimItf.getState(&initEnvState);
-	DriverModelState modelState = DriverModel::sampleState(realSituation.currentTime);
+	DriverModelState modelState = DriverModel::sampleState(realSituation.currentTime, driverActions);
 	state = State{ realSituation, initEnvState, modelState, 0 };
 	return state;
 }
@@ -83,12 +88,9 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 	// Get driver's action
 	TorcsState torcsState{ *situation };
 	DriverModel::updateInPlace(torcsState, nextState.modelState);
-	// float driverAction = utils::Discretizer::discretize(actions, nextState.modelState.action);
-	float driverAction = nextState.modelState.action;
+	float driverAction = utils::Discretizer::discretize(driverActions, nextState.modelState.action);
 
 	// Combine steering actions
-    // situation->cars[0]->_steerCmd = utils::Discretizer::discretize(actions, driverAction + agentAction);
-	// situation->cars[0]->_steerCmd = agentAction;
 	situation->cars[0]->_steerCmd = std::max(std::min(driverAction + agentAction, 1.0f), -1.0f);
 
 	// Set simulator's internal car state
@@ -107,7 +109,7 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 	reward = RewardCalculator::reward(*situation, agentAction);
 
 	nextState.actionsCount++;
-	observation = Observation{ *situation, driverAction, nextState.actionsCount};
+	observation = Observation{ *situation, driverAction, nextState.actionsCount, actions};
     return nextState.isTerminal();
 }
 
@@ -146,8 +148,8 @@ void TorcsSimulator::test(const State& origState) const {
 		tCar realCar;
 		raceEngineInfo._reSimItf.getState(&realCar); 
 
-		Observation obs = Observation(*situation, 0, 1);
-		Observation obs1 = Observation(realSituation, 0, 1);
+		Observation obs = Observation(*situation, 0, 1, actions);
+		Observation obs1 = Observation(realSituation, 0, 1, actions);
 	
 		nextState = State{ nextState };
 	}

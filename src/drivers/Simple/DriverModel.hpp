@@ -11,7 +11,7 @@ namespace pomdp
 class DriverModel
 {
 public:
-    DriverModel(double currentTime);
+    DriverModel(double currentTime, vector<Action>& driverActions);
 
     DriverModelState getState();
    void setState(DriverModelState modelState);
@@ -20,7 +20,7 @@ public:
 
     void update(TorcsState& torcsState);
 
-    static DriverModelState sampleState(double currentTime);
+    static DriverModelState sampleState(double currentTime, vector<Action>& driverActions);
     static void updateInPlace(const TorcsState& torcsState, DriverModelState& modelState);
 private:
     static constexpr double minAttentionDuration = 1; // Minimum duration of attention episode in s
@@ -32,8 +32,8 @@ private:
 };
 
 inline 
-DriverModel::DriverModel(double currentTime) {
-    state = sampleState(currentTime);
+DriverModel::DriverModel(double currentTime, vector<Action>& driverActions) {
+    state = sampleState(currentTime, driverActions);
 }
 
 inline 
@@ -48,8 +48,7 @@ void DriverModel::setState(DriverModelState modelState) {
 
 inline 
 float DriverModel::getAction() {
-    // return state.action;
-    return std::max(std::min(state.action, 0.5f), -0.5f);
+    return state.action;
 }
 
 inline 
@@ -58,7 +57,7 @@ void DriverModel::update(TorcsState& torcsState) {
 }
 
 inline 
-DriverModelState DriverModel::sampleState(double currentTime) {
+DriverModelState DriverModel::sampleState(double currentTime, vector<Action>& driverActions) {
     bool isDistracted = utils::RANDOM.getBool();
     double duration;
     float action;
@@ -66,7 +65,7 @@ DriverModelState DriverModel::sampleState(double currentTime) {
         duration = utils::RANDOM(maxDistractionDuration);
         duration = duration < minDistractionDuration ? minDistractionDuration : duration;
         // duration = utils::RANDOM.getSigned(minDistractionDuration, maxDistractionDuration);
-        action = utils::RANDOM(Observation::actions.size());
+        action = driverActions[utils::RANDOM(driverActions.size())];
     } else {
         duration = utils::RANDOM(maxAttentionDuration);
         duration = duration < minAttentionDuration ? minAttentionDuration : duration;

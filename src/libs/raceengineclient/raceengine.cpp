@@ -45,7 +45,6 @@ static double	bigMsgDisp;
 static double elapsed = 0.0;
 
 tRmInfo	*ReInfo = 0;
-int RESTART = 0; //ML
 
 static void ReRaceRules(tCarElt *car);
 
@@ -370,8 +369,6 @@ static void ReSortCars(void)
 	tCarElt	*car;
 	int	allfinish;
 	tSituation *s = ReInfo->s;
-	const int BUFSIZE = 1024; //ML
-	char buf[BUFSIZE]; //ML
 
 	if ((s->cars[0]->_state & RM_CAR_STATE_FINISH) == 0) {
 		allfinish = 0;
@@ -401,31 +398,6 @@ static void ReSortCars(void)
 	if (allfinish) {
 		ReInfo->s->_raceState = RM_RACE_ENDED;
 	}
-
-	//ML START
-    for  (i = 0; i < s->_ncars; i++)
-    {
-		if (s->cars[i]->RESET==1)
-		{
-			//printf("******* RESETTING *****\n");
-			ReInfo->_reSimItf.config(s->cars[i], ReInfo);		
-			s->cars[i]->RESET=0;
-			sprintf(buf, "RELOADING");
-			ReRaceMsgSet(buf, 4);
-		}
-		if (s->cars[i]->RESTART==1)
-		{
-			printf("******* RESTARTING *****\n");
-			RESTART = 1;
-			s->cars[i]->RESTART=0;
-		}
-    }
-
-    if (RESTART == 1)
-    {
-		ReInfo->_reState = RE_STATE_RACE_STOP;
-    }
-	//ML END
 }
 
 
@@ -696,6 +668,28 @@ ReOneStep(double deltaTimeIncrement)
 		ReRaceMsgUpdate();
 	}
 	ReSortCars();
+
+	bool restartRequested = false;
+	bool endRequested = false;
+
+	for (i = 0; i < s->_ncars; i++) {
+		if(s->cars[i]->RESTART) {
+			restartRequested = true;
+			s->cars[i]->RESTART = false;
+		}
+		if(s->cars[i]->END) {
+			endRequested = true;
+		}
+	}
+	if (endRequested) {
+		ReInfo->_reState = RE_STATE_EXIT;
+	} else if(restartRequested){   
+		ReRaceCleanup();
+		ReInfo->_reState = RE_STATE_PRE_RACE;
+		if (ReInfo->_displayMode == RM_DISP_MODE_NORMAL) {
+			GfuiScreenActivate(ReInfo->_reGameScreen);
+		}
+	}
 }
 
 void
@@ -797,7 +791,7 @@ ReUpdate(void)
 
 		case RM_DISP_MODE_CONSOLE:
 			t = ReInfo->_reCurTime;
-			while ((t - ReInfo->_reCurTime + 2.0) > 0.0) {
+			while ((t - ReInfo->_reCurTime + 2.0) > 0.0 && ReInfo->_reState != RE_STATE_PRE_RACE && ReInfo->_reState != RE_STATE_EXIT) {
 				ReOneStep(RCM_MAX_DT_SIMU);
 			}
 			mode = RM_SYNC;

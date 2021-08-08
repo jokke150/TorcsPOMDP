@@ -109,16 +109,7 @@ ReStateManage(void)
 				/* Interrupted by player */
 				mode = ReRaceStop();
 				if (mode & RM_NEXT_STEP) {
-					//ML START
-					if (RESTART == 1) {
-						RESTART=0;
-						ReRaceCleanup();
-						ReInfo->_reState = RE_STATE_PRE_RACE;
-						GfuiScreenActivate(ReInfo->_reGameScreen);
-					} else {
-					//ML END
-						ReInfo->_reState = RE_STATE_RACE_END;
-					} //ML
+					ReInfo->_reState = RE_STATE_RACE_END;
 				}
 				break;
 

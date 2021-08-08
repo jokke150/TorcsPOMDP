@@ -444,7 +444,7 @@ typedef struct
 */
 typedef struct CarElt
 {
-    int			index;	/**< car index */
+    int			    index;	/**< car index */
     tInitCar		info;	/**< public */
     tPublicCar		pub;	/**< public */
     tCarRaceInfo	race;	/**< public */
@@ -453,8 +453,8 @@ typedef struct CarElt
     tCarPitCmd		pitcmd;	/**< private */
     struct RobotItf	*robot;	/**< private */
     struct CarElt	*next;
-    int         RESTART;
-    int         RESET; 
+    bool            RESTART;
+    bool            END;
 
     CarElt() = default;
 
@@ -468,7 +468,7 @@ typedef struct CarElt
                                   robot{nullptr},
                                   next{nullptr},
                                   RESTART{other.RESTART},
-                                  RESET{other.RESET} {};
+                                  END{other.END} {};
 
     CarElt& operator=(const CarElt& other) {
         if (this == &other) return *this;
@@ -482,7 +482,7 @@ typedef struct CarElt
         robot = nullptr;
         next = nullptr;
         RESTART = other.RESTART;
-        RESET = other.RESET;
+        END = other.END;
         return *this;
     }
 } tCarElt;

@@ -28,5 +28,5 @@ src-robots-Simple_PKGDIR   = ${PACKAGE}-${VERSION}/$(subst ${TORCS_BASE},,$(shel
 
 include ${MAKE_DEFAULT}
 
-LDFLAGS =  -L${EXPORTBASE}/lib  -lopenal -lalut -lvorbisfile -L/usr/lib -L/home/jokke/Repositories/boost_1_76_0/install/lib/ -lboost_thread -lboost_system -rdynamic
-INCFLAGS =  -I${EXPORTBASE}/include -I${TORCS_BASE} -I/home/jokke/Repositories/boost_1_76_0
+LDFLAGS =  -L${EXPORTBASE}/lib  -lopenal -lalut -lvorbisfile -L/usr/lib -L/home/jokke/Repositories/boost_1_76_0/install/lib/ -lboost_thread -lboost_system -rdynamic -L${TORCS_BASE}/external/lib
+INCFLAGS =  -I${EXPORTBASE}/include -I${TORCS_BASE} -I/home/jokke/Repositories/boost_1_76_0 -I${TORCS_BASE}/external/include
