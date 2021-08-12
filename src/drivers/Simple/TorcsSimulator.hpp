@@ -28,9 +28,9 @@ public:
 	* @param initSituation: Reference to the initial torcs state
     * Create a new simulator
     */
-	TorcsSimulator(tSituation& situation, tRmInfo& raceEngineInfo, vector<Action>& actions, vector<Action>& driverActions, int numBins);
+	TorcsSimulator(tSituation& situation, tRmInfo& raceEngineInfo, vector<Action>& actions, vector<Action>& driverActions, int numBins, double discount);
 	virtual ~TorcsSimulator();
-	virtual double getDiscount() const {return DISCOUNT;}
+	virtual double getDiscount() const {return discount;}
 	virtual State& sampleInitialState(State& state) const;
 	virtual bool simulate(const State& state, unsigned actionIndex, State& nextState, Observation& observation, double& reward,unsigned depth) const;
 	virtual bool simulate(const State& state, unsigned actionIndex, State& nextState, double& reward,unsigned depth) const;
@@ -46,6 +46,7 @@ private:
 	vector<Action>& actions;
 	vector<Action>& driverActions;
 	int numBins;
+	double discount;
 	
 	// Generative model
 	tModList *modList = 0;
@@ -54,8 +55,8 @@ private:
 };
 
 inline
-TorcsSimulator::TorcsSimulator(tSituation& situation, tRmInfo& raceEngineInfo, vector<Action>& actions, vector<Action>& driverActions, int numBins) 
-	: raceEngineInfo{raceEngineInfo}, realSituation{situation}, actions{ actions }, driverActions{ driverActions }, numBins{ numBins }
+TorcsSimulator::TorcsSimulator(tSituation& situation, tRmInfo& raceEngineInfo, vector<Action>& actions, vector<Action>& driverActions, int numBins, double discount) 
+	: raceEngineInfo{raceEngineInfo}, realSituation{situation}, actions{ actions }, driverActions{ driverActions }, numBins{ numBins }, discount { discount }
 {
 	loadGenModel();
 }
@@ -70,7 +71,7 @@ State& TorcsSimulator::sampleInitialState(State& state) const
 {
 	tCar initEnvState;
 	raceEngineInfo._reSimItf.getState(&initEnvState);
-	DriverModelState modelState = DriverModel::sampleState(realSituation.currentTime, driverActions);
+	DriverModelState modelState = DriverModel::sampleState(driverActions);
 	state = State{ realSituation, initEnvState, modelState, 0 };
 	return state;
 }
@@ -87,7 +88,7 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 
 	// Get driver's action
 	TorcsState torcsState{ *situation };
-	DriverModel::updateInPlace(torcsState, nextState.modelState);
+	DriverModel::updateInPlace(torcsState, nextState.modelState, driverActions);
 	float driverAction = utils::Discretizer::discretize(driverActions, nextState.modelState.action);
 
 	// Combine steering actions

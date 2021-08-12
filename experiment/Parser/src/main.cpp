@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
 	for (CSVRow& row: reader) { // Input iterator
 		count = row["Count"].get<int>();
 		cheat = row["Cheat"].get<bool>(); // TODO: Check for cheating
+		cheat = row["Terminal"].get<bool>(); // TODO: Check for terminal state
 		reward = row["Reward"].get<double>();
 		statistics[count - 1].Add(reward);
 	}

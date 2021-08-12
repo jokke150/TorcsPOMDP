@@ -6730,7 +6730,8 @@ namespace csv {
             , int> = 0
         >
         std::string csv_escape(T in) {
-            return internals::to_string(in);
+            // return internals::to_string(in);
+            return std::to_string(in);
         }
 
         template<

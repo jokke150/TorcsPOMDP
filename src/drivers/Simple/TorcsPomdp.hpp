@@ -16,36 +16,31 @@ namespace pomdp
 // HYPERPARAMETERS
 // TODO: Tune
 // #define PLANNING_TIME 0.1
-#define RESAMPLING_TIME 0.1
-#define THRESHOLD 1
+#define RESAMPLING_TIME 1.0
+#define THRESHOLD 0.1
 #define EXPLORATION_CTE 100
 #define PARTICLES 100000
-#define DISCOUNT 0.95
+// #define DISCOUNT 0.95
 
 #define REWARD_CENTER 1
 #define PENALTY_OFF_LANE -10.0
 #define PENALTY_INTENSITY_EXP 2
 
-// #define NUM_ANGLE_BINS 1001; // Must be an odd number!
-// #define NUM_MIDDLE_BINS 1001; // Must be an odd number!
 #define START_BIN_SIZE 0.05f;
 #define TERMINAL_OFF_LANE_DIST 1.05
 
 typedef float Action;
 
 // Grid search
-// static const vector<vector<Action>> actionsScenarios{ {-1, -0.5, 0, 0.5, 1}, {-1, -0.5, -0.25, -0.1, 0, 0.1, 0.25, 0.5, 1} };
-static const vector<vector<Action>> actionsScenarios{ {-1, -0.5, -0.25, -0.1, 0, 0.1, 0.25, 0.5, 1} };
-// static const vector<double> planningTimesScenarios{ 0.1, 0.5, 1 };
-static const vector<double> planningTimesScenarios{ 0.1, 1 };
-// static const vector<int> binsScenarios{ 101, 1001, 10001 };
-static const vector<int> binsScenarios{ 101, 10001 };
-
+static const vector<vector<Action>> actionsScenarios{ {-1, -0.5, 0, 0.5, 1}, {-1, -0.5, -0.25, -0.1, 0, 0.1, 0.25, 0.5, 1} };
+static const vector<double> planningTimesScenarios{ 0.1, 0.5, 1.0 };
+static const vector<int> binsScenarios{ 101, 1001, 10001 };
+static const vector<double> discountScenarios{ THRESHOLD, pow(THRESHOLD, 1/5), pow(THRESHOLD, 1/10), pow(THRESHOLD, 1/15), pow(THRESHOLD, 1/20) }; // 1, 5, 10, 15, 20 actions discount horizon
 
 struct DriverModelState
 {
     bool isDistracted;
-    double timeEpisodeEnd;
+    unsigned numActions;
     float action;
 };
 
@@ -318,8 +313,8 @@ private:
 
 inline
 double RewardCalculator::reward(const tSituation& situation, const Action& action) {
-    // return rewardPosition(absDistToMiddle) - penaltyActionIntensity(action, absDistToMiddle);
-    return rewardAngle(situation);
+    return rewardPosition(situation);
+    // return rewardAngle(situation);
 }
 
 inline
