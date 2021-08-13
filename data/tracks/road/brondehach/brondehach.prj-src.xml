@@ -64,7 +64,7 @@
    <string>brondehach</string> 
   </void> 
   <void property="trackWidth"> 
-   <double>13.0</double> 
+   <double>3.75</double> 
   </void> 
  </object> 
 </java> 

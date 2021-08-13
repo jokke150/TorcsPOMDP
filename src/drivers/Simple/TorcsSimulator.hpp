@@ -1,3 +1,6 @@
+#ifndef _TORCS_SIM_H_
+#define _TORCS_SIM_H_
+
 #include <vector>
 #include <boost/functional/hash.hpp>
 
@@ -8,11 +11,14 @@
 #include "Random.hpp"
 #include "Pomcp.hpp"
 #include "DriverModel.hpp"
+#include "DrivingUtil.h"
 
 using namespace pomcp;
 
 namespace pomdp
 {
+
+class Driver;
 
 /**
  * class TorcsSimulator
@@ -86,13 +92,25 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 	nextState = state;
 	tSituation* situation = &nextState.situation;
 
+	tCarElt* car = situation->cars[0];
+
+	// Basic control updates
+	car->ctrl.gear = DrivingUtil::getGear(car);
+	car->ctrl.brakeCmd = DrivingUtil::getBrake(car);
+	if (car->ctrl.brakeCmd == 0.0) {
+		car->ctrl.accelCmd = DrivingUtil::getAccel(car);
+	} else {
+		car->ctrl.accelCmd = 0.0;
+	}
+
 	// Get driver's action
 	TorcsState torcsState{ *situation };
 	DriverModel::updateInPlace(torcsState, nextState.modelState, driverActions);
 	float driverAction = utils::Discretizer::discretize(driverActions, nextState.modelState.action);
 
 	// Combine steering actions
-	situation->cars[0]->_steerCmd = std::max(std::min(driverAction + agentAction, 1.0f), -1.0f);
+	// TODO: Is the gear change and accelleration not performed here?
+	car ->_steerCmd = std::max(std::min(driverAction + agentAction, 1.0f), -1.0f);
 
 	// Set simulator's internal car state
 	genModel.setState(&nextState.car);
@@ -179,3 +197,5 @@ void TorcsSimulator::loadGenModel() {
 }
 
 }
+
+#endif

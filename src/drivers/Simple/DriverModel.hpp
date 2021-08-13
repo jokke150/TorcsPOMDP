@@ -23,10 +23,14 @@ public:
     static DriverModelState sampleState(vector<Action>& driverActions);
     static void updateInPlace(const TorcsState& torcsState, DriverModelState& modelState, vector<Action>& driverActions);
 private:
-    static const unsigned minAttentiveActions = 1 / RCM_MAX_DT_ROBOTS; // Actions for one second of simulated time
-    static const unsigned maxAttentiveActions = 5 / RCM_MAX_DT_ROBOTS; // Actions for five seconds of simulated time
-    static const unsigned minDistractedActions = 1 / RCM_MAX_DT_ROBOTS; // Actions for one second of simulated time
-    static const unsigned maxDistractedActions = 5 / RCM_MAX_DT_ROBOTS; // Actions for five seconds of simulated time
+    // static const unsigned minAttentiveActions = 1 / RCM_MAX_DT_ROBOTS; // Actions for one second of simulated time
+    // static const unsigned maxAttentiveActions = 5 / RCM_MAX_DT_ROBOTS; // Actions for five seconds of simulated time
+    // static const unsigned minDistractedActions = 1 / RCM_MAX_DT_ROBOTS; // Actions for one second of simulated time
+    // static const unsigned maxDistractedActions = 5 / RCM_MAX_DT_ROBOTS; // Actions for five seconds of simulated time
+    static const unsigned minAttentiveActions = 1; // Actions for one second of simulated time
+    static const unsigned maxAttentiveActions = 5; // Actions for five seconds of simulated time
+    static const unsigned minDistractedActions = 1; // Actions for one second of simulated time
+    static const unsigned maxDistractedActions = 5; // Actions for five seconds of simulated time
     // static const vector<float> durationBins;
 
     DriverModelState state;
@@ -39,11 +43,11 @@ DriverModel::DriverModel(vector<Action>& driverActions) : driverActions{ driverA
     unsigned numActions;
     float action;
     if (isDistracted) {
-        numActions = utils::RANDOM(maxDistractedActions);
+        numActions = utils::RANDOM(maxDistractedActions + 1);
         numActions = numActions < minDistractedActions ? minDistractedActions : numActions;
         action = driverActions[utils::RANDOM(driverActions.size())];
     } else {
-        numActions = utils::RANDOM(maxAttentiveActions);
+        numActions = utils::RANDOM(maxAttentiveActions + 1);
         numActions = numActions < minAttentiveActions ? minAttentiveActions : numActions;
         action = -2;
     }
@@ -93,14 +97,14 @@ DriverModelState DriverModel::sampleState(vector<Action>& driverActions) {
         // duration = duration < minDistractionDuration ? minDistractionDuration : duration;
         // duration = utils::RANDOM.getSigned(minAttentionDuration, maxDistractionDuration);
         // duration = utils::Discretizer::discretize(durationBins, duration);
-        numActions = utils::RANDOM(maxDistractedActions); // Can be less than minDistractedActions here
+        numActions = utils::RANDOM(maxDistractedActions + 1); // Can be less than minDistractedActions here
         action = driverActions[utils::RANDOM(driverActions.size())];
     } else {
         // duration = utils::RANDOM(maxAttentionDuration);
         // duration = duration < minAttentionDuration ? minAttentionDuration : duration;
         // duration = utils::RANDOM.getSigned(minAttentionDuration, maxAttentionDuration);
         // duration = utils::Discretizer::discretize(durationBins, duration);
-        numActions = utils::RANDOM(maxAttentiveActions); // Can be less than minAttentiveActions here
+        numActions = utils::RANDOM(maxAttentiveActions + 1); // Can be less than minAttentiveActions here
         action = -2;
     }
 
@@ -111,11 +115,11 @@ inline
 void DriverModel::updateInPlace(const TorcsState& torcsState, DriverModelState& modelState, vector<Action>& driverActions) {
     if (modelState.numActions == 0) {
         if (modelState.isDistracted) {
-            modelState.numActions = utils::RANDOM(maxDistractedActions);
+            modelState.numActions = utils::RANDOM(maxDistractedActions + 1);
             modelState.numActions = modelState.numActions < minDistractedActions ? minDistractedActions : modelState.numActions;
             modelState.isDistracted = false;
         } else {
-            modelState.numActions = utils::RANDOM(maxAttentiveActions);
+            modelState.numActions = utils::RANDOM(maxAttentiveActions + 1);
             modelState.numActions = modelState.numActions < minAttentiveActions ? minAttentiveActions : modelState.numActions;
             modelState.isDistracted = true;
         }

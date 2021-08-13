@@ -51,7 +51,7 @@
       <attnum name="distance between columns" val="0"/>
       <attnum name="offset within a column" val="0"/>
       <attnum name="initial speed" val="0"/>
-      <attnum name="initial height" val="0.2"/>
+      <attnum name="initial height" val="0"/>
     </section>
 
   </section>

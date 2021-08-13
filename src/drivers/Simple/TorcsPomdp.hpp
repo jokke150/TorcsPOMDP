@@ -31,12 +31,6 @@ namespace pomdp
 
 typedef float Action;
 
-// Grid search
-static const vector<vector<Action>> actionsScenarios{ {-1, -0.5, 0, 0.5, 1}, {-1, -0.5, -0.25, -0.1, 0, 0.1, 0.25, 0.5, 1} };
-static const vector<double> planningTimesScenarios{ 0.1, 0.5, 1.0 };
-static const vector<int> binsScenarios{ 101, 1001, 10001 };
-static const vector<double> discountScenarios{ THRESHOLD, pow(THRESHOLD, 1/5), pow(THRESHOLD, 1/10), pow(THRESHOLD, 1/15), pow(THRESHOLD, 1/20) }; // 1, 5, 10, 15, 20 actions discount horizon
-
 struct DriverModelState
 {
     bool isDistracted;
@@ -249,7 +243,8 @@ bool Observation::operator==(Observation const& other) const
     //     && distToMiddle == other.distToMiddle;
     // return angle == other.angle && distToMiddle == other.distToMiddle && distToStart == other.distToStart && lastDriverAction == other.lastDriverAction;
     //return angle == other.angle && distToMiddle == other.distToMiddle && distToStart == other.distToStart;
-    return angle == other.angle && distToStart == other.distToStart && lastDriverAction == other.lastDriverAction;
+    // return angle == other.angle && distToStart == other.distToStart && lastDriverAction == other.lastDriverAction;
+    return angle == other.angle;
     // return angle == other.angle && distToMiddle == other.distToMiddle && distToStart == other.distToStart;
 }
 
@@ -291,8 +286,8 @@ namespace std {
         // boost::hash_combine(seed, hash_value(o.trackSensorData));
         hash_combine(seed, hash_value(o.angle));
         // hash_combine(seed, hash_value(o.distToMiddle));
-        hash_combine(seed, hash_value(o.distToStart));
-        hash_combine(seed, hash_value(o.lastDriverAction));
+        // hash_combine(seed, hash_value(o.distToStart));
+        // hash_combine(seed, hash_value(o.lastDriverAction));
         // hash_combine(seed, hash_value(o.numActions));
         return seed;
     }

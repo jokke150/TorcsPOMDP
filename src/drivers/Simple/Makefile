@@ -16,7 +16,7 @@
 ROBOT       = Simple
 MODULE      = ${ROBOT}.so
 MODULEDIR   = drivers/${ROBOT}
-SOURCES     = ${ROBOT}.cpp sensors.cpp 
+SOURCES     = ${ROBOT}.cpp sensors.cpp Driver.cpp
 
 SHIPDIR     = drivers/${ROBOT}
 SHIP        = ${ROBOT}.xml pw-306wrc.rgb logo.rgb
