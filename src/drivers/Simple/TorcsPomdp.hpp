@@ -6,60 +6,13 @@
 #include <carstruct.h>
 
 #include "sensors.h"
-#include "Discretizer.hpp"
+#include "DriverModel.hpp"
+#include "Constants.h"
 
 using std::vector;
 
 namespace pomdp
 {
-
-// HYPERPARAMETERS
-// TODO: Tune
-// #define PLANNING_TIME 0.1
-#define RESAMPLING_TIME 1.0
-#define THRESHOLD 0.1
-#define EXPLORATION_CTE 100
-#define PARTICLES 100000
-// #define DISCOUNT 0.95
-
-#define REWARD_CENTER 1
-#define PENALTY_OFF_LANE -10.0
-#define PENALTY_INTENSITY_EXP 2
-
-#define START_BIN_SIZE 0.05f;
-#define TERMINAL_OFF_LANE_DIST 1.05
-
-typedef float Action;
-
-struct DriverModelState
-{
-    bool isDistracted;
-    unsigned numActions;
-    float action;
-};
-
-struct TorcsState
-{
-    TorcsState(tSituation& s);
-    TorcsState(float angle, double currentTime, float steerLock);
-    float angle;
-    double currentTime;
-    float steerLock;
-};
-
-inline
-TorcsState::TorcsState(tSituation& s) {
-    tCarElt* car = s.cars[0];
-    const float SC = 1.0;
-    angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
-    NORM_PI_PI(angle); // normalize the angle between -PI and + PI
-    angle -= SC * car->_trkPos.toMiddle / car->_trkPos.seg->width;
-    currentTime = s.currentTime;
-    steerLock = car->_steerLock;
-}
-
-inline
-TorcsState::TorcsState(float angle, double currentTime, float steerLock) : angle{ angle }, currentTime{ currentTime }, steerLock{ steerLock } {}
 
 typedef struct State 
 {   
@@ -135,6 +88,7 @@ public:
     float distToStart;
     float lastDriverAction;
     int numActions;
+    float speed;
 
 private:
     // static const int numSensors;
@@ -142,7 +96,6 @@ private:
     // static const vector<float> trackSensAngle;
     // static Sensors *trackSensors;
     // static const vector<float> sensorBins;
-    static constexpr float startBinSize = START_BIN_SIZE;
     static vector<float> angleBins; // [-PI, ..., PI]
     static vector<float> middleBins; // [neg. out of lane, -1, ..., +1 , pos. out of lane]
 };
@@ -225,7 +178,7 @@ Observation::Observation(tSituation& situation, float driverAction, int numActio
     // Compute distance to start
     distToStart = car->_trkPos.seg->lgfromstart + 
         (car->_trkPos.seg->type == TR_STR ? car->_trkPos.toStart : car->_trkPos.toStart * car->_trkPos.seg->radius);
-    distToStart = distToStart >= startBinSize ? std::round(distToStart / startBinSize) : 0;
+    distToStart = distToStart >= START_BIN_SIZE ? std::round(distToStart / START_BIN_SIZE) : 0;
 
     // Compute the car angle wrt. the track axis
     const float SC = 1.0;
@@ -233,6 +186,8 @@ Observation::Observation(tSituation& situation, float driverAction, int numActio
     NORM_PI_PI(angle); // normalize the angle between -PI and + PI
     angle -= SC * car->_trkPos.toMiddle / car->_trkPos.seg->width;
     angle = utils::Discretizer::discretize(Observation::angleBins, angle);
+
+    speed = car->_speed_x;
 }
 
 inline
@@ -244,7 +199,9 @@ bool Observation::operator==(Observation const& other) const
     // return angle == other.angle && distToMiddle == other.distToMiddle && distToStart == other.distToStart && lastDriverAction == other.lastDriverAction;
     //return angle == other.angle && distToMiddle == other.distToMiddle && distToStart == other.distToStart;
     // return angle == other.angle && distToStart == other.distToStart && lastDriverAction == other.lastDriverAction;
-    return angle == other.angle;
+    return angle == other.angle && 
+           distToMiddle == distToMiddle && 
+           lastDriverAction == other.lastDriverAction;
     // return angle == other.angle && distToMiddle == other.distToMiddle && distToStart == other.distToStart;
 }
 
@@ -285,9 +242,9 @@ namespace std {
         size_t seed = 0;
         // boost::hash_combine(seed, hash_value(o.trackSensorData));
         hash_combine(seed, hash_value(o.angle));
-        // hash_combine(seed, hash_value(o.distToMiddle));
+        hash_combine(seed, hash_value(o.distToMiddle));
         // hash_combine(seed, hash_value(o.distToStart));
-        // hash_combine(seed, hash_value(o.lastDriverAction));
+        hash_combine(seed, hash_value(o.lastDriverAction));
         // hash_combine(seed, hash_value(o.numActions));
         return seed;
     }
@@ -299,7 +256,7 @@ namespace pomdp {
 class RewardCalculator 
 {
 public:
-    static double reward(const tSituation& situation, const Action& action);
+    static double reward(const tSituation& nextState, const Action& action);
 private:
     static double rewardPosition(const tSituation& situation);
     static double penaltyActionIntensity(const tSituation& situation, const Action& action);
@@ -307,9 +264,9 @@ private:
 };
 
 inline
-double RewardCalculator::reward(const tSituation& situation, const Action& action) {
-    return rewardPosition(situation);
-    // return rewardAngle(situation);
+double RewardCalculator::reward(const tSituation& nextState, const Action& action) {
+    // return rewardPosition(nextState);
+    return rewardAngle(nextState);
 }
 
 inline

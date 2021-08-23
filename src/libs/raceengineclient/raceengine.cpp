@@ -648,7 +648,7 @@ ReOneStep(double deltaTimeIncrement)
 		for (i = 0; i < s->_ncars; i++) {
 			if ((s->cars[i]->_state & RM_CAR_STATE_NO_SIMU) == 0) {
 				robot = s->cars[i]->robot;
-				robot->rbDrive(robot->index, s->cars[i], s, ReInfo);
+				robot->rbDrive(robot->index, s->cars[i], s);
 			}
 		}
 		elapsed = 0;

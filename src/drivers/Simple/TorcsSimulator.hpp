@@ -10,7 +10,7 @@
 #include "MonteCarloSimulator.hpp"
 #include "Random.hpp"
 #include "Pomcp.hpp"
-#include "DriverModel.hpp"
+#include "TorcsPomdp.hpp"
 #include "DrivingUtil.h"
 
 using namespace pomcp;
@@ -75,10 +75,10 @@ TorcsSimulator::~TorcsSimulator() {
 inline   
 State& TorcsSimulator::sampleInitialState(State& state) const
 {
-	tCar initEnvState;
-	raceEngineInfo._reSimItf.getState(&initEnvState);
+	tCar envState;
+	raceEngineInfo._reSimItf.getState(&envState); // WE CHEAT HERE BY USING THE REAL TORCS STATE!
 	DriverModelState modelState = DriverModel::sampleState(driverActions);
-	state = State{ realSituation, initEnvState, modelState, 0 };
+	state = State{ realSituation, envState, modelState, 0 };
 	return state;
 }
 
@@ -94,35 +94,38 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 
 	tCarElt* car = situation->cars[0];
 
-	// Basic control updates
-	car->ctrl.gear = DrivingUtil::getGear(car);
-	car->ctrl.brakeCmd = DrivingUtil::getBrake(car);
-	if (car->ctrl.brakeCmd == 0.0) {
-		car->ctrl.accelCmd = DrivingUtil::getAccel(car);
-	} else {
-		car->ctrl.accelCmd = 0.0;
-	}
-
 	// Get driver's action
 	TorcsState torcsState{ *situation };
 	DriverModel::updateInPlace(torcsState, nextState.modelState, driverActions);
-	float driverAction = utils::Discretizer::discretize(driverActions, nextState.modelState.action);
-
+	float driverAction = nextState.modelState.action;
+	
 	// Combine steering actions
-	// TODO: Is the gear change and accelleration not performed here?
 	car ->_steerCmd = std::max(std::min(driverAction + agentAction, 1.0f), -1.0f);
 
 	// Set simulator's internal car state
 	genModel.setState(&nextState.car);
 	
 	// Simulate situation
-	double elapsed = 0;
+	double elapsedTotal = 0;
+	double elapsedLastCall = RCM_MAX_DT_ROBOTS;
 	situation->deltaTime = RCM_MAX_DT_SIMU;
-	while (elapsed <= RCM_MAX_DT_ROBOTS + RCM_MAX_DT_SIMU) {
+	do {
+		if (elapsedLastCall >= RCM_MAX_DT_ROBOTS) {
+			// Basic control updates
+			car->ctrl.gear = DrivingUtil::getGear(car);
+			car->ctrl.brakeCmd = DrivingUtil::getBrake(car);
+			if (car->ctrl.brakeCmd == 0.0) {
+				car->ctrl.accelCmd = DrivingUtil::getAccel(car);
+			} else {
+				car->ctrl.accelCmd = 0.0;
+			}
+			elapsedLastCall = 0;
+		}
 		genModel.update(situation, RCM_MAX_DT_SIMU, -1);
 		situation->currentTime += RCM_MAX_DT_SIMU;
-		elapsed += RCM_MAX_DT_SIMU;
-	}
+		elapsedTotal += RCM_MAX_DT_SIMU;
+		elapsedLastCall += RCM_MAX_DT_SIMU;
+	} while (elapsedTotal <= STEER_ACTION_FREQ);
 
 	// Set reward after obtaining next state as it is based upon it
 	reward = RewardCalculator::reward(*situation, agentAction);
@@ -132,47 +135,57 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
     return nextState.isTerminal();
 }
 
-inline
-void TorcsSimulator::test(const State& origState) const {
-	State nextState = origState;
-	tSituation* situation = &nextState.situation;
-	tCarElt* carElt = nextState.situation.cars[0];
-	for (int i = 0; i < 10000; i++) {
-		const float SC = 1.0;
-		float angle =  RtTrackSideTgAngleL(&(carElt->_trkPos)) - carElt->_yaw;
-		NORM_PI_PI(angle); // normalize the angle between -PI and + PI
-		angle -= SC * carElt->_trkPos.toMiddle / carElt->_trkPos.seg->width;
-		float steerLock = carElt->_steerLock;
-    	carElt->_steerCmd = angle / steerLock;
+// inline
+// void TorcsSimulator::test(const State& origState) const {
+// 	State nextState = origState;
+// 	tSituation* situation = &nextState.situation;
+// 	tCarElt* carElt = nextState.situation.cars[0];
+// 	for (int i = 0; i < 10000; i++) {
+// 		// Basic control updates
+// 		carElt->ctrl.gear = DrivingUtil::getGear(carElt);
+// 		carElt->ctrl.brakeCmd = DrivingUtil::getBrake(carElt);
+// 		if (carElt->ctrl.brakeCmd == 0.0) {
+// 			carElt->ctrl.accelCmd = DrivingUtil::getAccel(carElt);
+// 		} else {
+// 			carElt->ctrl.accelCmd = 0.0;
+// 		}
 
-		realSituation.cars[0]->_steerCmd = carElt->_steerCmd;
+// 		// Get driver's action
+// 		TorcsState torcsState{ *situation };
+// 		DriverModel::updateInPlace(torcsState, nextState.modelState, driverActions);
+// 		float driverAction = nextState.modelState.action;
+		
+// 		// Combine steering actions
+// 		car ->_steerCmd = std::max(std::min(driverAction + agentAction, 1.0f), -1.0f);
 
-		// Set simulator's internal car state
-		genModel.setState(&nextState.car);
+// 		realSituation.cars[0]->ctrl = carElt->ctrl;
 
-		double elapsed = 0;
-		while (elapsed <= RCM_MAX_DT_ROBOTS + RCM_MAX_DT_SIMU) {
-			genModel.update(situation, RCM_MAX_DT_SIMU, -1);
-			situation->currentTime += RCM_MAX_DT_SIMU;
-			elapsed += RCM_MAX_DT_SIMU;
-		}
+// 		// Set simulator's internal car state
+// 		genModel.setState(&nextState.car);
 
-		elapsed = 0;
-		while (elapsed <= RCM_MAX_DT_ROBOTS + RCM_MAX_DT_SIMU) {
-			raceEngineInfo._reSimItf.update(&realSituation, RCM_MAX_DT_SIMU, -1);
-			realSituation.currentTime += RCM_MAX_DT_SIMU;
-			elapsed += RCM_MAX_DT_SIMU;
-		}
+// 		double elapsed = 0;
+// 		while (elapsed <= RCM_MAX_DT_ROBOTS + RCM_MAX_DT_SIMU) {
+// 			genModel.update(situation, RCM_MAX_DT_SIMU, -1);
+// 			situation->currentTime += RCM_MAX_DT_SIMU;
+// 			elapsed += RCM_MAX_DT_SIMU;
+// 		}
 
-		tCar realCar;
-		raceEngineInfo._reSimItf.getState(&realCar); 
+// 		elapsed = 0;
+// 		while (elapsed <= RCM_MAX_DT_ROBOTS + RCM_MAX_DT_SIMU) {
+// 			raceEngineInfo._reSimItf.update(&realSituation, RCM_MAX_DT_SIMU, -1);
+// 			realSituation.currentTime += RCM_MAX_DT_SIMU;
+// 			elapsed += RCM_MAX_DT_SIMU;
+// 		}
 
-		Observation obs = Observation(*situation, 0, 1, actions);
-		Observation obs1 = Observation(realSituation, 0, 1, actions);
+// 		tCar realCar;
+// 		raceEngineInfo._reSimItf.getState(&realCar); 
+
+// 		Observation obs = Observation(*situation, 0, 1, actions);
+// 		Observation obs1 = Observation(realSituation, 0, 1, actions);
 	
-		nextState = State{ nextState };
-	}
-}
+// 		nextState = State{ nextState };
+// 	}
+// }
 
 inline
 bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& nextState, double& reward,unsigned depth) const

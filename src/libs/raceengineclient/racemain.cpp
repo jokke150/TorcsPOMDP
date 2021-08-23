@@ -278,7 +278,7 @@ static int reRaceRealStart(void)
 		snprintf(buf, BUFSIZE, "Initializing Driver %s...", s->cars[i]->_name);
 		RmLoadingScreenSetText(buf);
 		robot = s->cars[i]->robot;
-		robot->rbNewRace(robot->index, s->cars[i], s);
+		robot->rbNewRace(robot->index, s->cars[i], s, ReInfo);
 	}
 	carInfo = ReInfo->_reCarInfo;
 

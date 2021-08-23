@@ -15,25 +15,37 @@ namespace pomdp {
 
 class GridSearch {
 	public:
-		GridSearch() = default;
+        GridSearch(GridSearch const&) = delete;
+        void operator=(GridSearch const&)  = delete;
 		~GridSearch() = default;
-		
-		tuple<bool, double, vector<float>, int, double> getNextScenarios();
-		tuple<bool, double, vector<float>, int, double> getNextDiscountScenario();
 
-		void reset();
+		tuple<bool, std::string, double, vector<float>, int, double> getNextScenarios();
+		tuple<bool, std::string, double, vector<float>, int, double> getNextDiscountScenario();
+
+		static GridSearch& getInstance();
 
 		std::string agentScenario = "planner"; // "planner" -> "driver" -> "optimal"
 		int actionsScenarioIdx = -1; // TODO Smarter initial Call
-		int binsScenarioIdx = 0; 
-		int planningTimeScenarioIdx = 0;
-		int discountScenarioIdx = -1;
+		int discountScenarioIdx = -1; // TODO Smarter initial Call
+		unsigned binsScenarioIdx = 0; 
+		unsigned planningTimeScenarioIdx = 0;
+
+		void reset();
+	private:
+		GridSearch() = default;
 };
 
-inline tuple<bool, double, vector<float>, int, double> GridSearch::getNextScenarios() 
-{
+inline
+GridSearch& GridSearch::getInstance() {
+	static GridSearch instance;
+    return instance;
+}
+
+inline 
+tuple<bool, std::string, double, vector<float>, int, double> GridSearch::getNextScenarios() 
+{	
 	bool isFinished = false;
-	if (actionsScenarioIdx == ACTION_SCENARIOS.size() - 1) {
+	if (actionsScenarioIdx == ((int) ACTION_SCENARIOS.size() - 1)) {
 		actionsScenarioIdx = 0;
 		if (agentScenario == "planner") {
 			if (binsScenarioIdx == BIN_SCNEARIOS.size() - 1) {
@@ -57,16 +69,18 @@ inline tuple<bool, double, vector<float>, int, double> GridSearch::getNextScenar
 	}
 
 	return make_tuple(isFinished,
+					  agentScenario,
 					  DISCOUNT_SCENARIOS[0],
 					  ACTION_SCENARIOS[actionsScenarioIdx], 
 					  BIN_SCNEARIOS[binsScenarioIdx], 
 					  PLANNING_TIME_SCENARIOS[planningTimeScenarioIdx]);
 }
 
-inline tuple<bool, double, vector<float>, int, double> GridSearch::getNextDiscountScenario() 
+inline 
+tuple<bool, std::string, double, vector<float>, int, double> GridSearch::getNextDiscountScenario() 
 {
 	bool isFinished = false;
-	if (discountScenarioIdx < DISCOUNT_SCENARIOS.size() - 1) {
+	if (discountScenarioIdx < ((int) DISCOUNT_SCENARIOS.size() - 1)) {
 		discountScenarioIdx++;
 	} else {
 		if (agentScenario == "planner") {
@@ -81,13 +95,15 @@ inline tuple<bool, double, vector<float>, int, double> GridSearch::getNextDiscou
 	}
 
 	return make_tuple(isFinished,
+					  agentScenario,
 					  DISCOUNT_SCENARIOS[discountScenarioIdx],
 					  ACTION_SCENARIOS[0], 
 					  BIN_SCNEARIOS[2], 
 					  PLANNING_TIME_SCENARIOS[2]);
 }
 
-inline void GridSearch::reset() 
+inline 
+void GridSearch::reset() 
 {
 	agentScenario = "planner"; // "planner" -> "driver" -> "optimal"
 	binsScenarioIdx = 0;

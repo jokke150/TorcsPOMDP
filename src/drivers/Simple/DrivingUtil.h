@@ -44,7 +44,6 @@ inline float DrivingUtil::getBrake(tCarElt* car)
 	return 0.0;
 }
 
-
 /* Compute gear */
 inline int DrivingUtil::getGear(tCarElt* car)
 {

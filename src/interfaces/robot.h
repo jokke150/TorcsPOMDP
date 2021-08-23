@@ -62,7 +62,7 @@ typedef void (*tfRbNewTrack)(int index, tTrack *track, void *carHandle, void **m
  *  @param[in] car Car
  *  @param[in] s Situation
  */
-typedef void (*tfRbNewRace) (int index, tCarElt *car, tSituation *s);
+typedef void (*tfRbNewRace) (int index, tCarElt *car, tSituation *s, tRmInfo *ReInfo);
 
 /** Callback function prototype for robot module, teardown after race, this is currently NOT called by TORCS
  *  @ingroup robotmodint
@@ -78,7 +78,7 @@ typedef void (*tfRbEndRace) (int index, tCarElt *car, tSituation *s);
  *  @param[in,out] car Car, the tCarCtrl is modified to return the driving commands
  *  @param[in] s Situation
  */
-typedef void (*tfRbDrive)   (int index, tCarElt *car, tSituation *s, tRmInfo *ReInfo);
+typedef void (*tfRbDrive)   (int index, tCarElt *car, tSituation *s);
 
 /** Callback function prototype for robot module, shutdown robot instance for given index
  *  @ingroup robotmodint

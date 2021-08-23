@@ -39,8 +39,8 @@ class Driver {
 
 		/* callback functions called from TORCS */
 		void initTrack(tTrack* t, void *carHandle, void **carParmHandle, tSituation *s);
-		void newRace(tCarElt* car, tSituation *s);
-		void drive(tSituation *s, tRmInfo *ReInfo);
+		void newRace(tCarElt* car, tSituation *s, tRmInfo *ReInfo);
+		void drive(tSituation *s);
 		void endRace(tSituation *s);
 		tCarElt *getCarPtr() { return car; }
 		tTrack *getTrackPtr() { return track; }
@@ -63,7 +63,7 @@ class Driver {
 		double reward;
 
 		/* grid search state */
-		GridSearch gridSearch;
+		std::string agentScenario;
 		vector<float> actions;
 		vector<float> driverActions;
 		int binSize;

@@ -41,8 +41,8 @@ using namespace pomdp;
 static Driver* driver;
 
 static void initTrack(int index, tTrack* track, void *carHandle, void **carParmHandle, tSituation *s); 
-static void newrace(int index, tCarElt* car, tSituation *s); 
-static void drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo); 
+static void newrace(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo); 
+static void drive(int index, tCarElt* car, tSituation *s); 
 static void endrace(int index, tCarElt *car, tSituation *s);
 static void shutdown(int index);
 static int  InitFuncPt(int index, void *pt); 
@@ -92,16 +92,16 @@ initTrack(int index, tTrack* track, void *carHandle, void **carParmHandle, tSitu
 
 /* Start a new race. */
 static void  
-newrace(int index, tCarElt* car, tSituation *s) 
+newrace(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo) 
 { 
-    driver->newRace(car, s);
+    driver->newRace(car, s, ReInfo);
 } 
 
 /* Drive during race. */
 static void
-drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
+drive(int index, tCarElt* car, tSituation *s)
 {
-    driver->drive(s, ReInfo);
+    driver->drive(s);
 }
 
 /* End of the current race */
