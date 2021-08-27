@@ -10,6 +10,7 @@
 using std::vector;
 using std::tuple;
 using std::make_tuple;
+using std::string;
 
 namespace pomdp {
 
@@ -19,16 +20,17 @@ class GridSearch {
         void operator=(GridSearch const&)  = delete;
 		~GridSearch() = default;
 
-		tuple<bool, std::string, double, vector<float>, int, double> getNextScenarios();
-		tuple<bool, std::string, double, vector<float>, int, double> getNextDiscountScenario();
+		tuple<bool, string, double, vector<float>, int, double, unsigned> getNextScenarios();
+		tuple<bool, string, double, vector<float>, int, double, unsigned> getNextDiscountScenario();
 
 		static GridSearch& getInstance();
 
-		std::string agentScenario = "planner"; // "planner" -> "driver" -> "optimal"
+		string agentScenario = INITIAL_AGENT_SCENARIO; // "planner" -> "driver" -> "optimal"
 		int actionsScenarioIdx = -1; // TODO Smarter initial Call
 		int discountScenarioIdx = -1; // TODO Smarter initial Call
 		unsigned binsScenarioIdx = 0; 
 		unsigned planningTimeScenarioIdx = 0;
+		unsigned numSimsScenarioIdx = 0;
 
 		void reset();
 	private:
@@ -42,7 +44,7 @@ GridSearch& GridSearch::getInstance() {
 }
 
 inline 
-tuple<bool, std::string, double, vector<float>, int, double> GridSearch::getNextScenarios() 
+tuple<bool, string, double, vector<float>, int, double, unsigned> GridSearch::getNextScenarios() 
 {	
 	bool isFinished = false;
 	if (actionsScenarioIdx == ((int) ACTION_SCENARIOS.size() - 1)) {
@@ -51,7 +53,12 @@ tuple<bool, std::string, double, vector<float>, int, double> GridSearch::getNext
 			if (binsScenarioIdx == BIN_SCNEARIOS.size() - 1) {
 				binsScenarioIdx = 0;
 				if (planningTimeScenarioIdx == PLANNING_TIME_SCENARIOS.size() - 1) {
-					agentScenario = "driver";
+					planningTimeScenarioIdx = 0;
+					if (numSimsScenarioIdx == NUM_SIMS_SCENARIOS.size() - 1) {
+						agentScenario = "driver";
+					} else {
+						numSimsScenarioIdx++;
+					}
 				} else {
 					planningTimeScenarioIdx++;
 				}
@@ -70,14 +77,15 @@ tuple<bool, std::string, double, vector<float>, int, double> GridSearch::getNext
 
 	return make_tuple(isFinished,
 					  agentScenario,
-					  DISCOUNT_SCENARIOS[0],
+					  DEFAULT_DISCOUNT,
 					  ACTION_SCENARIOS[actionsScenarioIdx], 
 					  BIN_SCNEARIOS[binsScenarioIdx], 
-					  PLANNING_TIME_SCENARIOS[planningTimeScenarioIdx]);
+					  PLANNING_TIME_SCENARIOS[planningTimeScenarioIdx],
+					  NUM_SIMS_SCENARIOS[numSimsScenarioIdx]);
 }
 
 inline 
-tuple<bool, std::string, double, vector<float>, int, double> GridSearch::getNextDiscountScenario() 
+tuple<bool, string, double, vector<float>, int, double, unsigned> GridSearch::getNextDiscountScenario() 
 {
 	bool isFinished = false;
 	if (discountScenarioIdx < ((int) DISCOUNT_SCENARIOS.size() - 1)) {
@@ -98,8 +106,9 @@ tuple<bool, std::string, double, vector<float>, int, double> GridSearch::getNext
 					  agentScenario,
 					  DISCOUNT_SCENARIOS[discountScenarioIdx],
 					  ACTION_SCENARIOS[0], 
-					  BIN_SCNEARIOS[2], 
-					  PLANNING_TIME_SCENARIOS[2]);
+					  BIN_SCNEARIOS[0], 
+					  PLANNING_TIME_SCENARIOS[0],
+					  NUM_SIMS_SCENARIOS[0]);
 }
 
 inline 

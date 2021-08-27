@@ -42,9 +42,10 @@ static Driver* driver;
 
 static void initTrack(int index, tTrack* track, void *carHandle, void **carParmHandle, tSituation *s); 
 static void newrace(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo); 
-static void drive(int index, tCarElt* car, tSituation *s); 
+static void drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo); 
 static void endrace(int index, tCarElt *car, tSituation *s);
 static void shutdown(int index);
+static void getInitState(tCar& initState, tSituation& initSituation);
 static int  InitFuncPt(int index, void *pt); 
 
 
@@ -71,13 +72,14 @@ InitFuncPt(int index, void *pt)
 { 
     tRobotItf *itf  = (tRobotItf *)pt; 
 
-    driver          = new Driver();
-    itf->rbNewTrack = initTrack; /* Give the robot the track view called */ 
-    itf->rbNewRace  = newrace; 	 /* Start a new race */
-    itf->rbDrive    = drive;	 /* Drive during race */
-    itf->rbPitCmd   = NULL;
-    itf->rbEndRace  = endrace;	 /* End of the current race */
-    itf->rbShutdown = shutdown;	 /* Called before the module is unloaded */
+    driver              = new Driver();
+    itf->rbNewTrack     = initTrack; /* Give the robot the track view called */ 
+    itf->rbNewRace      = newrace; 	 /* Start a new race */
+    itf->rbDrive        = drive;	 /* Drive during race */
+    itf->rbPitCmd       = NULL;
+    itf->rbEndRace      = endrace;	 /* End of the current race */
+    itf->rbShutdown     = shutdown;	 /* Called before the module is unloaded */
+    itf->rbGetInitState = getInitState;
     itf->index      = index; 	 /* Index used if multiple interfaces */
     return 0; 
 } 
@@ -99,9 +101,9 @@ newrace(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 
 /* Drive during race. */
 static void
-drive(int index, tCarElt* car, tSituation *s)
+drive(int index, tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 {
-    driver->drive(s);
+    driver->drive(s, ReInfo);
 }
 
 /* End of the current race */
@@ -116,5 +118,11 @@ static void
 shutdown(int index)
 {
     delete driver;
+}
+
+static void 
+getInitState(tCar& initState, tSituation& initSituation)
+{
+    driver->getInitialState(initState, initSituation);
 }
 

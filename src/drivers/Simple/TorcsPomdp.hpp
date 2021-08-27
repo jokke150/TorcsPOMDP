@@ -1,4 +1,4 @@
-#include <cmath>
+#include <math.h>
 #include <algorithm>
 #include <boost/functional/hash.hpp>
 #include <tgf.h>
@@ -193,16 +193,9 @@ Observation::Observation(tSituation& situation, float driverAction, int numActio
 inline
 bool Observation::operator==(Observation const& other) const
 {
-    // return trackSensors == other.trackSensors 
-    //     && angle == other.angle 
-    //     && distToMiddle == other.distToMiddle;
-    // return angle == other.angle && distToMiddle == other.distToMiddle && distToStart == other.distToStart && lastDriverAction == other.lastDriverAction;
-    //return angle == other.angle && distToMiddle == other.distToMiddle && distToStart == other.distToStart;
-    // return angle == other.angle && distToStart == other.distToStart && lastDriverAction == other.lastDriverAction;
     return angle == other.angle && 
            distToMiddle == distToMiddle && 
            lastDriverAction == other.lastDriverAction;
-    // return angle == other.angle && distToMiddle == other.distToMiddle && distToStart == other.distToStart;
 }
 
 inline
@@ -245,6 +238,7 @@ namespace std {
         hash_combine(seed, hash_value(o.distToMiddle));
         // hash_combine(seed, hash_value(o.distToStart));
         hash_combine(seed, hash_value(o.lastDriverAction));
+        // hash_combine(seed, hash_value(o.speed));
         // hash_combine(seed, hash_value(o.numActions));
         return seed;
     }
@@ -261,16 +255,34 @@ private:
     static double rewardPosition(const tSituation& situation);
     static double penaltyActionIntensity(const tSituation& situation, const Action& action);
     static double rewardAngle(const tSituation& situation);
+    static double rewardAngleAndPosition(const tSituation& situation);
 };
 
 inline
-double RewardCalculator::reward(const tSituation& nextState, const Action& action) {
-    // return rewardPosition(nextState);
-    return rewardAngle(nextState);
+double RewardCalculator::reward(const tSituation& nextState, const Action& action) 
+{
+    return rewardAngleAndPosition(nextState);
+}
+
+/** 
+ * From: Design of a Reinforcement Learning-Based Lane Keeping Planning Agent for Automated Vehicles
+ */
+inline
+double RewardCalculator::rewardAngleAndPosition(const tSituation& situation) 
+{
+    tCarElt *car = situation.cars[0];
+    double distToMiddle = 2 * car->_trkPos.toMiddle / (car->_trkPos.seg->width);
+    float angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
+    NORM_PI_PI(angle); // normalize the angle between -PI and + PI
+    angle -= car->_trkPos.toMiddle / car->_trkPos.seg->width;
+    angle = angle / PI; // normalize to [-1,1]
+    double reward = cos(angle + abs(distToMiddle));
+    return reward > 0 ? reward : 0;
 }
 
 inline
-double RewardCalculator::rewardPosition(const tSituation& situation) {
+double RewardCalculator::rewardPosition(const tSituation& situation) 
+{
     tCarElt *car = situation.cars[0];
     double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
     double reward = absDistToMiddle <= 1 ? REWARD_CENTER * std::pow(0.01, absDistToMiddle) : PENALTY_OFF_LANE;
@@ -278,7 +290,8 @@ double RewardCalculator::rewardPosition(const tSituation& situation) {
 }
 
 inline
-double RewardCalculator::penaltyActionIntensity(const tSituation& situation, const Action& action) {
+double RewardCalculator::penaltyActionIntensity(const tSituation& situation, const Action& action) 
+{
     tCarElt *car = situation.cars[0];
     double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
     double penalty = (1 - std::min(absDistToMiddle, 1.0)) * pow(abs(action), PENALTY_INTENSITY_EXP);
@@ -286,7 +299,8 @@ double RewardCalculator::penaltyActionIntensity(const tSituation& situation, con
 }
 
 inline
-double RewardCalculator::rewardAngle(const tSituation& situation) {
+double RewardCalculator::rewardAngle(const tSituation& situation) 
+{
     tCarElt *car = situation.cars[0];
     double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
     const float SC = 1.0;

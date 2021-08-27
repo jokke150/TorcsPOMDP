@@ -40,11 +40,12 @@ class Driver {
 		/* callback functions called from TORCS */
 		void initTrack(tTrack* t, void *carHandle, void **carParmHandle, tSituation *s);
 		void newRace(tCarElt* car, tSituation *s, tRmInfo *ReInfo);
-		void drive(tSituation *s);
+		void drive(tSituation *s, tRmInfo *ReInfo);
 		void endRace(tSituation *s);
 		tCarElt *getCarPtr() { return car; }
 		tTrack *getTrackPtr() { return track; }
 		float getSpeed() { return speed; }
+		void getInitialState(tCar& initState, tSituation& initSituation) { initState = this->initState; initSituation = this->initSituation; }
 
 	private:
 		/* utility functions */
@@ -53,7 +54,10 @@ class Driver {
 
 		/* experiment state */
 		unsigned int runs = 0;
-		double totalReward = 0;
+		bool setInitialState = false;
+		tCar initState;
+		tSituation initSituation;
+		double totalReward;
 		
 		/* episode state */
 		unsigned long actionsCount;
@@ -61,6 +65,7 @@ class Driver {
 		PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>>* planner;
 		DriverModel* driverModel;
 		double reward;
+		bool cheat;
 
 		/* grid search state */
 		std::string agentScenario;
@@ -68,6 +73,7 @@ class Driver {
 		vector<float> driverActions;
 		int binSize;
 		double planningTime;
+		unsigned numSimulations;
 		double discount;
 
 		/* last actions */
@@ -88,6 +94,7 @@ class Driver {
 
 		/* track variables */
 		tTrack* track;
+
 };
 
 }

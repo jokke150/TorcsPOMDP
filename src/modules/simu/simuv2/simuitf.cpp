@@ -51,13 +51,14 @@ simuInit(int /* index */, void *pt)
 {
     tSimItf	*sim = (tSimItf*)pt;
     
-    sim->init     = SimInit;
-    sim->config   = SimConfig;
-    sim->reconfig = SimReConfig;
-    sim->update   = SimUpdate;
-    sim->shutdown = SimShutdown;
-    sim->getState = SimGetState;
-    sim->setState = SimSetState;
+    sim->init            = SimInit;
+    sim->config          = SimConfig;
+    sim->reconfig        = SimReConfig;
+    sim->update          = SimUpdate;
+    sim->shutdown        = SimShutdown;
+    sim->getState        = SimGetState;
+    sim->setState        = SimSetState;
+    sim->setStatePointer = SimSetStatePointer;
     
     return 0;
 }

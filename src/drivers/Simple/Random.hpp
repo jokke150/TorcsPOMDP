@@ -40,8 +40,12 @@ namespace utils
 class RandomNumberGenerator
 {
 public:
-	RandomNumberGenerator(RandomNumberGenerator const&) = delete;
-        void operator=(RandomNumberGenerator const&)  = delete;
+	// TODO: Fix singleton mess
+	RandomNumberGenerator(): seed(std::chrono::system_clock::now().time_since_epoch().count()), gen(seed), uniformDist(0.0,1.0) {};
+	RandomNumberGenerator(unsigned seed): seed(seed), gen(seed), uniformDist(0.0,1.0) {};
+	RandomNumberGenerator(RandomNumberGenerator const&) = default;
+	RandomNumberGenerator& operator=(RandomNumberGenerator const&)  = default;
+
 	~RandomNumberGenerator() {}
         /**
    	 * Get the singleton instance of RandomNumberGenerator
@@ -77,12 +81,6 @@ public:
    	 */
 	double operator()() {return uniformDist(gen);}
 	/**
-   	 * Get a random real number -size <= x <= size following an uniform distribution
-	 * @param size: the upper bound and lower bound (negated) for the number (including)
-	 * @return: A random real number
-   	 */
-	double getSigned(double loBound, double upBound);
-	/**
    	 * Get a random boolean
 	 * @return: bool
    	 */
@@ -95,7 +93,6 @@ public:
    	 */
 	double operator()(double mean, double stddev);
 private:
-	RandomNumberGenerator(): seed(std::chrono::system_clock::now().time_since_epoch().count()), gen(seed), uniformDist(0.0,1.0) {} 
 	unsigned seed;
 	std::mt19937 gen;
 	std::uniform_real_distribution<double> uniformDist;
@@ -112,19 +109,10 @@ unsigned RandomNumberGenerator::operator()(unsigned size)
 }
 
 inline 
-double RandomNumberGenerator::getSigned(double loBound, double upBound) 
-{
-	#ifdef _POMCP_DEBUG_
-	assert(size>0);	
-	#endif
-	std::uniform_real_distribution<double> distribution(loBound, upBound);
-	return distribution(gen);
-}
-
-inline 
 bool RandomNumberGenerator::getBool() 
 {
-	return (bool) RandomNumberGenerator::operator()(2);
+	std::uniform_int_distribution<unsigned> distribution(0,1);
+	return (bool) distribution(gen);
 }
 
 

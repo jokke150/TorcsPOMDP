@@ -4,8 +4,10 @@
 #include "Random.hpp"
 #include "Discretizer.hpp"
 #include "Constants.h"
+#include "DrivingUtil.h"
 
 using std::vector;
+using utils::RandomNumberGenerator;
 
 namespace pomdp
 {
@@ -14,7 +16,7 @@ typedef float Action;
 
 struct TorcsState
 {
-    TorcsState(tSituation& s);
+    TorcsState(const tSituation& s);
     TorcsState(float angle, double currentTime, float steerLock);
     float angle;
     double currentTime;
@@ -22,7 +24,7 @@ struct TorcsState
 };
 
 inline
-TorcsState::TorcsState(tSituation& s) {
+TorcsState::TorcsState(const tSituation& s) {
     tCarElt* car = s.cars[0];
     const float SC = 1.0;
     angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
@@ -46,36 +48,26 @@ struct DriverModelState
 class DriverModel
 {
 public:
-    DriverModel(vector<Action>& driverActions);
+    DriverModel(vector<Action>& driverActions, unsigned randSeed);
 
     DriverModelState getState();
     void setState(DriverModelState modelState);
     float getAction();
     void update(TorcsState& torcsState);
 
-    static void updateInPlace(const TorcsState& torcsState, DriverModelState& modelState, vector<Action>& driverActions);
-    static DriverModelState sampleState(vector<Action>& driverActions);
+    static void updateInPlace(const TorcsState& torcsState, DriverModelState& modelState, vector<Action>& driverActions, RandomNumberGenerator& rng);
+    static DriverModelState sampleState(vector<Action>& driverActions, RandomNumberGenerator& rng, bool initial);
+    static DriverModelState sampleState(vector<Action>& driverActions, RandomNumberGenerator& rng, float action);
 private:
     DriverModelState state;
     vector<Action>& driverActions;
+    RandomNumberGenerator rng;
 };
 
 inline 
-DriverModel::DriverModel(vector<Action>& driverActions) : driverActions{ driverActions } {
-    bool isDistracted = utils::RANDOM.getBool();
-    unsigned numActionsRemaining;
-    float action;
-    if (isDistracted) {
-        numActionsRemaining = utils::RANDOM(MAX_DISTRACTED_ACTIONS + 1);
-        numActionsRemaining = numActionsRemaining < MIN_DISTRACTED_ACTIONS ? MIN_DISTRACTED_ACTIONS : numActionsRemaining;
-        action = driverActions[utils::RANDOM(driverActions.size())];
-    } else {
-        numActionsRemaining = utils::RANDOM(MAX_ATTENTIVE_ACTIONS + 1);
-        numActionsRemaining = numActionsRemaining < MIN_ATTENTIVE_ACTIONS ? MIN_ATTENTIVE_ACTIONS : numActionsRemaining;
-        action = -2;
-    }
-
-    state = DriverModelState{isDistracted, numActionsRemaining, action };
+DriverModel::DriverModel(vector<Action>& driverActions, unsigned randSeed) : driverActions{ driverActions }, rng{ RandomNumberGenerator(randSeed) }
+{
+    state = sampleState(driverActions, rng, true);
 }
 
 inline 
@@ -84,31 +76,35 @@ DriverModelState DriverModel::getState() {
 }
 
 inline 
-void DriverModel::setState(DriverModelState modelState) {
+void DriverModel::setState(DriverModelState modelState) 
+{
     state = modelState;
 }
 
 inline 
-float DriverModel::getAction() {
+float DriverModel::getAction() 
+{
     return state.action;
 }
 
 inline 
-void DriverModel::update(TorcsState& torcsState) {
-    updateInPlace(torcsState, state, driverActions);
+void DriverModel::update(TorcsState& torcsState) 
+{
+    updateInPlace(torcsState, state, driverActions, rng);
 }
 
 
 inline 
-void DriverModel::updateInPlace(const TorcsState& torcsState, DriverModelState& modelState, vector<Action>& driverActions) {
+void DriverModel::updateInPlace(const TorcsState& torcsState, DriverModelState& modelState, vector<Action>& driverActions, RandomNumberGenerator& rng) 
+{
     if (modelState.numActionsRemaining == 0) {
         if (modelState.isDistracted) {
-            modelState.numActionsRemaining = utils::RANDOM(MAX_DISTRACTED_ACTIONS + 1);
+            modelState.numActionsRemaining = rng(MAX_DISTRACTED_ACTIONS + 1);
             modelState.numActionsRemaining = modelState.numActionsRemaining < MIN_DISTRACTED_ACTIONS ? 
                 MIN_DISTRACTED_ACTIONS : modelState.numActionsRemaining;
             modelState.isDistracted = false;
         } else {
-            modelState.numActionsRemaining = utils::RANDOM(MAX_ATTENTIVE_ACTIONS + 1);
+            modelState.numActionsRemaining = rng(MAX_ATTENTIVE_ACTIONS + 1);
             modelState.numActionsRemaining = modelState.numActionsRemaining < MIN_ATTENTIVE_ACTIONS ? 
                 MIN_ATTENTIVE_ACTIONS : modelState.numActionsRemaining;
             modelState.isDistracted = true;
@@ -121,37 +117,48 @@ void DriverModel::updateInPlace(const TorcsState& torcsState, DriverModelState& 
         // Driver is attentive -> steer to middle
         // TODO: Add more sophisticated driving behavior?
         modelState.action = utils::Discretizer::discretize(driverActions, torcsState.angle / torcsState.steerLock);
+        // modelState.action = DrivingUtil::getOptimalSteer(car)
+        // getOptimalSteer
     }
     modelState.numActionsRemaining--;
 }
 
 inline 
-DriverModelState DriverModel::sampleState(vector<Action>& driverActions) {
-    bool isDistracted = utils::RANDOM.getBool();
-    // double duration;
-    unsigned numActionsRemaining;
+DriverModelState DriverModel::sampleState(vector<Action>& driverActions, RandomNumberGenerator& rng, bool initial = false) 
+{
+    bool isDistracted = rng.getBool();
     float action;
+    unsigned numActionsRemaining;
     if (isDistracted) {
-        // duration = utils::RANDOM(maxDistractionDuration);
-        // duration = duration < minDistractionDuration ? minDistractionDuration : duration;
-        // duration = utils::RANDOM.getSigned(minAttentionDuration, maxDistractionDuration);
-        // duration = utils::Discretizer::discretize(durationBins, duration);
-        numActionsRemaining = utils::RANDOM(MAX_DISTRACTED_ACTIONS + 1); // Can be less than MIN_DISTRACTED_ACTIONS here
-        action = driverActions[utils::RANDOM(driverActions.size())];
+        numActionsRemaining = rng(MAX_DISTRACTED_ACTIONS + 1); 
+        if (initial) {
+            // Can be less than MIN_DISTRACTED_ACTIONS otherwise
+            numActionsRemaining = numActionsRemaining < MIN_DISTRACTED_ACTIONS ? MIN_DISTRACTED_ACTIONS : numActionsRemaining;
+        }
+        action = driverActions[rng(driverActions.size())];
     } else {
-        // duration = utils::RANDOM(maxAttentionDuration);
-        // duration = duration < minAttentionDuration ? minAttentionDuration : duration;
-        // duration = utils::RANDOM.getSigned(minAttentionDuration, maxAttentionDuration);
-        // duration = utils::Discretizer::discretize(durationBins, duration);
-        numActionsRemaining = utils::RANDOM(MAX_ATTENTIVE_ACTIONS + 1); // Can be less than MIN_ATTENTIVE_ACTIONS here
-        action = -2;
+        numActionsRemaining = rng(MAX_ATTENTIVE_ACTIONS + 1);
+        if (initial) {
+            // Can be less than MIN_ATTENTIVE_ACTIONS otherwise
+            numActionsRemaining = numActionsRemaining < MIN_ATTENTIVE_ACTIONS ? MIN_ATTENTIVE_ACTIONS : numActionsRemaining;
+        }
+        action = -INFINITY;
     }
 
     return DriverModelState{isDistracted, numActionsRemaining, action };
 }
 
+inline 
+DriverModelState DriverModel::sampleState(vector<Action>& driverActions, RandomNumberGenerator& rng, float action) 
+{
+    DriverModelState state = sampleState(driverActions, rng);
+    state.action = action;
+    return state;
+}
+
 // inline
-// const vector<float> DriverModel::durationBins = [](){ 
+// const vector<float> DriverModel::durationBins = []()
+// { 
 //     vector<float> bins;
 //     int numBins = (maxAttentionDuration - minAttentionDuration) * 60 / 10; // In 1/10 second bins
 //     bins.reserve(numBins);

@@ -133,6 +133,14 @@ public:
 		}
 		return validActions;
 	}
+	/**
+   	 * Transform a given state so that it gives the same observation as the original state.
+	 * @param state: [IN] state to be trabsformed
+	 * @param observation: [IN] the expected observation
+	 * @param transformedState [IN/OUT] the transformed state
+	 * @return true if a transformation was found
+	 */
+	virtual bool transform(const S& state, const Z& observation, S& transformedState) const = 0;
 };
 
 }

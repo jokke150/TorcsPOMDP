@@ -22,8 +22,10 @@ void Driver::initTrack(tTrack* t, void *carHandle, void **carParmHandle, tSituat
 void Driver::newRace(tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 {
 	this->car = car;
+
 	actionsCount = 0;
     reward = 0;
+	cheat = false;
     discount = 1.0;
     targetSpeedReached = false;
 	elapsed = STEER_ACTION_FREQ; // Use planner to steer immediately after target speed is reached
@@ -31,38 +33,41 @@ void Driver::newRace(tCarElt* car, tSituation *s, tRmInfo *ReInfo)
     // Grid search for hyperparameters
 	if (runs == 0 || runs == TARGET_RUNS) {
         runs = 0;
+		totalReward = 0;
 		bool isFinished = false;
 		if (SEARCH_DISCOUNT) {
-			std::tie(isFinished, agentScenario, discount, actions, binSize, planningTime) = GridSearch::getInstance().getNextDiscountScenario();
+			std::tie(isFinished, agentScenario, discount, actions, binSize, planningTime, numSimulations) = GridSearch::getInstance().getNextDiscountScenario();
 		} else {
-			std::tie(isFinished, agentScenario, discount, actions, binSize, planningTime) = GridSearch::getInstance().getNextScenarios();
+			std::tie(isFinished, agentScenario, discount, actions, binSize, planningTime, numSimulations) = GridSearch::getInstance().getNextScenarios();
 		}
 		if (isFinished) {
 			// Experiment is finished
 			car->END = true;
 			return;
 		}
-		// Driver can only steer half. Ultimately, the agent is in control.
-        driverActions = agentScenario == "planner" ? std::vector<Action>(actions.begin() + 1, actions.end() - 1) : actions; 
+        driverActions = std::vector<Action>(actions.begin() + 1, actions.end() - 1); // Agent can overrule driver with "oversteering"
 		Observation::setAngleBins(binSize);
         Observation::setMiddleBins(binSize);
 	}
 
+	simulator = new TorcsSimulator{ *s, *ReInfo, actions, driverActions, binSize, discount };
 	if (agentScenario == "planner") {
-		simulator = new TorcsSimulator{ *s, *ReInfo, actions, driverActions, binSize, discount };
 		planner = new PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>>{ *simulator, 
-			planningTime, RESAMPLING_TIME, THRESHOLD, EXPLORATION_CTE, PARTICLES }; 
+			planningTime, numSimulations, RESAMPLING_TIME, THRESHOLD, EXPLORATION_CTE, PARTICLES, PARTICLE_REINV, (unsigned) (numSimulations * TRANSFER_QUOTA), (unsigned) (numSimulations * TRANSFER_QUOTA) }; 
 	}
-	driverModel = new DriverModel(driverActions);  
+	// We use the #run as seed so that the episodes of the different solution methods are comparable
+	driverModel = new DriverModel(driverActions, runs);
 
 	// CSV Writer
-    ofs.open (agentScenario
-		+ (SEARCH_DISCOUNT? " d" + std::to_string(GridSearch::getInstance().discountScenarioIdx) : 
-			" a" + std::to_string(GridSearch::getInstance().actionsScenarioIdx) 
-			+ (agentScenario == "planner" ? " b" + std::to_string(GridSearch::getInstance().binsScenarioIdx) : "") 
-			+ (agentScenario == "planner" ? " p" + std::to_string(GridSearch::getInstance().planningTimeScenarioIdx) : ""))
-		+ ".csv"
-		, std::ofstream::out | std::ofstream::app);
+	string fileName = agentScenario + " a" + std::to_string(GridSearch::getInstance().actionsScenarioIdx);
+	if (SEARCH_DISCOUNT) {
+		fileName += " d" + std::to_string(GridSearch::getInstance().discountScenarioIdx);
+	} else if (agentScenario == "planner") {
+		fileName += " b" + std::to_string(GridSearch::getInstance().binsScenarioIdx);
+		fileName += " p" + std::to_string(GridSearch::getInstance().planningTimeScenarioIdx);
+		fileName += " s" + std::to_string(GridSearch::getInstance().numSimsScenarioIdx);
+	}
+    ofs.open ( fileName + ".csv", std::ofstream::out | std::ofstream::app);
 
     if (runs == 0) {
         writer << std::vector<std::string>({"Run", "Count", "Cheat", "Terminal", "Size", "Depth", "Speed", "Angle", "Reward", "Gain", "From Start", 
@@ -73,29 +78,13 @@ void Driver::newRace(tCarElt* car, tSituation *s, tRmInfo *ReInfo)
     runs++;
 
 	// Console output
-	std::cout<<agentScenario
-		+ (SEARCH_DISCOUNT? " d" + std::to_string(GridSearch::getInstance().discountScenarioIdx) : 
-			" a" + std::to_string(GridSearch::getInstance().actionsScenarioIdx) 
-			+ (agentScenario == "planner" ? " b" + std::to_string(GridSearch::getInstance().binsScenarioIdx) : "") 
-			+ (agentScenario == "planner" ? " p" + std::to_string(GridSearch::getInstance().planningTimeScenarioIdx) : ""))
-		+ " - run " + std::to_string(runs)<<std::endl;
+	std::cout << fileName + " - run " + std::to_string(runs) << std::endl;
 }
 
 
 /* Drive during race. */
-void Driver::drive(tSituation *s)
+void Driver::drive(tSituation *s, tRmInfo *ReInfo)
 {
-
-	/*
-	 * TODO
-	 * - Why are all actions exectuted the same number of times?
-	 * - 
-	 */
-
-
-	float oldSteer = car->ctrl.steer;
-	memset(&car->ctrl, 0, sizeof(tCarCtrl));
-
 	update(s);
 
 	// Basic control updates
@@ -113,6 +102,13 @@ void Driver::drive(tSituation *s)
 		return;
 	}
 
+	// Store initial state with correct speed for later episodes
+	if (!setInitialState) {
+		ReInfo->_reSimItf.getState(&initState);
+		initSituation = *s;
+		setInitialState = true;
+	}
+
 	if (elapsed >= STEER_ACTION_FREQ) {
 		elapsed = 0;
 
@@ -122,11 +118,10 @@ void Driver::drive(tSituation *s)
 			// Only update planner after first action
 			Observation obs = Observation(*s, lastDriverAction, actionsCount, actions);
 
-			bool cheat = false;
 			unsigned depth, size;
 			depth = size = 0;
-			if (agentScenario == "planner") {
-				planner->computeInfo(size,depth);
+			if (agentScenario == "planner" && !cheat) {
+				planner->computeInfo(size, depth);
 				cheat = planner->moveTo(lastActIdx, obs); // TODO: Actually, this determines if the planner will cheat for the next action, not the last one
 			}
 
@@ -138,30 +133,13 @@ void Driver::drive(tSituation *s)
 
 			double distToStart = car->_trkPos.seg->lgfromstart + 
 				(car->_trkPos.seg->type == TR_STR ? car->_trkPos.toStart : car->_trkPos.toStart * car->_trkPos.seg->radius);
-			double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
+			double distToMiddle = 2*car->_trkPos.toMiddle/(car->_trkPos.seg->width);
 			bool isDistracted = driverModel->getState().isDistracted;
-
-			// std::cout<<"__________________________________"<<std::endl;
-			// std::cout<<"Count: "<<actionsCount<<std::endl;
-			// std::cout<<"Size: "<<size<<std::endl;
-			// std::cout<<"Depth: "<<depth<<std::endl;
-			// std::cout<<"Speed: "<<speed<<std::endl;
-			// std::cout<<"Angle: "<<angle<<std::endl;
-			// std::cout<<"Reward: "<<reward<<std::endl;
-			// std::cout<<"From Start: "<<distToStart<<std::endl;
-			// std::cout<<"To Middle: "<<absDistToMiddle<<std::endl;
-			// std::cout<<"Driver distracted: "<<isDistracted<<std::endl;
-			// std::cout<<"Current time: "<<s->currentTime<<std::endl;
-			// std::cout<<"Driver state duration: "<<timeEpisodeEnd<<std::endl;
-			// std::cout<<"Optimal: "<<lastOptimalAction<<std::endl;
-			// std::cout<<"Combined: "<<lastCombinedAction<<std::endl;
-			// std::cout<<"Agent: "<<actions[lastActIdx]<<std::endl;
-			// std::cout<<"Driver: "<<lastDriverAction<<std::endl; 
 			
 			bool isTerminal = State::isTerminal(*s);
 
 			writer << std::make_tuple(runs, actionsCount, cheat ? "cheat" : "fair", isTerminal, size, depth, speed, torcsState.angle, reward, rewardGain, distToStart, 
-									absDistToMiddle, isDistracted, s->currentTime, driverModel->getState().numActionsRemaining, lastOptimalAction, lastCombinedAction,
+									distToMiddle, isDistracted, s->currentTime, driverModel->getState().numActionsRemaining, lastOptimalAction, lastCombinedAction,
 									actions[lastActIdx], lastDriverAction);
 
 			// Restart race and start next run if terminal state is reached
@@ -177,26 +155,57 @@ void Driver::drive(tSituation *s)
 			}
 		}
 
-		float driverAction = 0;
-		int agentActionIdx = 0;
+		// Determine driver's action (discretized)
+		driverModel->update(torcsState);
+		float driverAction = driverModel->getAction();
+		
+		unsigned agentActionIdx = 0;
+		float agentAction;
 		float optimalAction = DrivingUtil::getOptimalSteer(car);
-		optimalAction = utils::Discretizer::discretize(actions, optimalAction);
-		if (agentScenario != "optimal") {
-			// Determine driver's action (discretized)
-			driverModel->update(torcsState);
-			driverAction = driverModel->getAction();
-
-			float agentAction = 0;
-			if (agentScenario == "planner") {
+		// float optimalAction = utils::Discretizer::discretize(driverActions, DrivingUtil::getOptimalSteer(car));
+		if (agentScenario == "planner") {
+			if (!cheat) {
+				// POMCP planner
 				agentActionIdx = planner->getAction();
-				agentAction = actions[agentActionIdx];
+			} else {
+				// Select random
+				agentActionIdx = actions[utils::RANDOM(actions.size())];
 			}
-
-			// Combine steering actions
-			car->_steerCmd = std::max(std::min(driverAction + agentAction, 1.0f), -1.0f);
+			agentAction = actions[agentActionIdx];
+		} else if (agentScenario == "optimal") {
+			// Optimal response - We use elements of the hidden state of the environment
+			tCar realCarState;
+			ReInfo->_reSimItf.getState(&realCarState);
+			// double maxReward = -100;
+			double minDistance = 2;
+			for (unsigned a = 0; a < actions.size(); a ++) {
+				DriverModelState modelState;
+				State state{ *s, realCarState, modelState, 0};
+				State nextState;
+				double reward;
+				simulator->simulateStep(state, actions[a], driverAction, nextState, reward); // TODO: Look multiple steps ahead?
+				tCarElt* car = nextState.situation.cars[0];
+				double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
+				// if (reward > maxReward) {
+				// 	maxReward = reward;
+				// 	agentActionIdx = a;
+				// 	agentAction = actions[agentActionIdx];
+				// }
+				if (absDistToMiddle < minDistance) {
+					minDistance = absDistToMiddle;
+					agentActionIdx = a;
+					agentAction = actions[agentActionIdx];
+				}
+			}
+			// driverAction = 0;
+			// agentAction = optimalAction;
 		} else {
-			car->_steerCmd = optimalAction;
+			// Driver only
+			agentAction = 0;
 		}
+
+		// Combine steering actions
+		car->_steerCmd = std::max(std::min(driverAction + agentAction, 1.0f), -1.0f);
 		
 		actionsCount++;
 		lastActIdx = agentActionIdx;
@@ -204,17 +213,17 @@ void Driver::drive(tSituation *s)
 		lastCombinedAction = car->_steerCmd;
 		lastDriverAction = driverAction;
 	} else {
-		car->ctrl.steer = oldSteer;
+		car->_steerCmd *= 1 - elapsed / STEER_ACTION_FREQ; // TODO: Fix
+		elapsed += RCM_MAX_DT_ROBOTS;
 	}
-	elapsed += RCM_MAX_DT_ROBOTS;
 }
 
-inline void Driver::restart(tCarElt* car)
+void Driver::restart(tCarElt* car)
 {
     totalReward += reward;
     double avgReward = totalReward / runs;
-    std::cout<<"Restarting"<<std::endl;
-    std::cout<<"Average reward after "<<runs<<" runs: "<<avgReward<<std::endl;
+    std::cout << "Restarting" << std::endl;
+    std::cout << "Average reward after " << runs << " runs: " << avgReward << std::endl;
 
     writer.flush();
     ofs.close();

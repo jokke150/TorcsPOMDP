@@ -486,7 +486,13 @@ SimGetState(tCar* car)
 }
 
 void
-SimSetState(tCar* car)
+SimSetState(tCar& car)
+{
+	*SimCarTable = car;
+}
+
+void
+SimSetStatePointer(tCar* car)
 {
 	SimCarTable = car;
 }

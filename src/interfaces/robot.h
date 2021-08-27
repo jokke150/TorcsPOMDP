@@ -78,7 +78,7 @@ typedef void (*tfRbEndRace) (int index, tCarElt *car, tSituation *s);
  *  @param[in,out] car Car, the tCarCtrl is modified to return the driving commands
  *  @param[in] s Situation
  */
-typedef void (*tfRbDrive)   (int index, tCarElt *car, tSituation *s);
+typedef void (*tfRbDrive)   (int index, tCarElt *car, tSituation *s, tRmInfo *ReInfo);
 
 /** Callback function prototype for robot module, shutdown robot instance for given index
  *  @ingroup robotmodint
@@ -100,17 +100,24 @@ typedef int  (*tfRbPitCmd)  (int index, tCarElt* car, tSituation *s);
 #define ROB_PIT_IM	0	/**< Immediate return from pit command */
 #define ROB_PIT_MENU	1	/**< Call the interactive menu for pit command */
 
+/** Callback function prototype for robot module, get initial state
+ *  @ingroup robotmodint
+ *  @param[in] index Index of the robot instance
+ */
+typedef void (*tfRbGetInitState)(tCar& initState, tSituation& initSituation);
+
 
 /** Interface Structure for Robots
     @ingroup robotmodint
 */
 typedef struct RobotItf {
-	tfRbNewTrack rbNewTrack;
-	tfRbNewRace  rbNewRace;
-	tfRbEndRace  rbEndRace;
-	tfRbDrive	 rbDrive;
-	tfRbPitCmd	 rbPitCmd;
-	tfRbShutdown rbShutdown;
+	tfRbNewTrack     rbNewTrack;
+	tfRbNewRace      rbNewRace;
+	tfRbEndRace      rbEndRace;
+	tfRbDrive	     rbDrive;
+	tfRbPitCmd	     rbPitCmd;
+	tfRbShutdown     rbShutdown;
+    tfRbGetInitState rbGetInitState;
 	int index;
 } tRobotItf;
 

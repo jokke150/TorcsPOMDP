@@ -83,20 +83,24 @@ typedef void (*tfSimShutdown)(void);
 typedef void (*tfSimGetState)(tCar* car);
 
 /** Callback function prototype for setting simulation module internal state */
-typedef void (*tfSimSetState)(tCar* car);
+typedef void (*tfSimSetState)(tCar& car);
+
+/** Callback function prototype for setting simulation module internal state */
+typedef void (*tfSimSetStatePtr)(tCar* car);
 
 /** Interface Structure for Simulation
     @ingroup simumodint
 */
 typedef struct
 {
-	tfSimInit		init;
-	tfSimConfig		config;
-	tfSimReConfig	reconfig;
-	tfSimUpdate		update;
-	tfSimShutdown	shutdown;
-    tfSimGetState	getState;
-    tfSimSetState	setState;
+	tfSimInit		    init;
+	tfSimConfig		    config;
+	tfSimReConfig	    reconfig;
+	tfSimUpdate		    update;
+	tfSimShutdown	    shutdown;
+    tfSimGetState	    getState;
+    tfSimSetState	    setState;
+    tfSimSetStatePtr	setStatePointer;
 } tSimItf;
 
 

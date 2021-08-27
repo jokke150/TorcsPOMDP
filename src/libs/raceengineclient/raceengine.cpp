@@ -645,11 +645,9 @@ ReOneStep(double deltaTimeIncrement)
 	START_PROFILE("rbDrive*");
 	if (elapsed >= RCM_MAX_DT_ROBOTS) { // >= because of floating point arithmetic rounding
 		s->deltaTime = RCM_MAX_DT_SIMU;
-		for (i = 0; i < s->_ncars; i++) {
-			if ((s->cars[i]->_state & RM_CAR_STATE_NO_SIMU) == 0) {
-				robot = s->cars[i]->robot;
-				robot->rbDrive(robot->index, s->cars[i], s);
-			}
+		if ((s->cars[0]->_state & RM_CAR_STATE_NO_SIMU) == 0) {
+			robot = s->cars[0]->robot;
+			robot->rbDrive(robot->index, s->cars[0], s, ReInfo);
 		}
 		elapsed = 0;
 	} else {
@@ -672,23 +670,32 @@ ReOneStep(double deltaTimeIncrement)
 	bool restartRequested = false;
 	bool endRequested = false;
 
-	for (i = 0; i < s->_ncars; i++) {
-		if(s->cars[i]->RESTART) {
-			restartRequested = true;
-			s->cars[i]->RESTART = false;
-		}
-		if(s->cars[i]->END) {
-			endRequested = true;
-		}
+	if(s->cars[0]->RESTART) {
+		restartRequested = true;
+		s->cars[0]->RESTART = false;
 	}
+	if(s->cars[0]->END) {
+		endRequested = true;
+	}
+	
 	if (endRequested) {
 		ReInfo->_reState = RE_STATE_EXIT;
 	} else if(restartRequested){   
-		ReRaceCleanup();
-		ReInfo->_reState = RE_STATE_PRE_RACE;
-		if (ReInfo->_displayMode == RM_DISP_MODE_NORMAL) {
-			GfuiScreenActivate(ReInfo->_reGameScreen);
-		}
+		// ReRaceCleanup();
+		// ReInfo->_reState = RE_STATE_PRE_RACE;
+		// if (ReInfo->_displayMode == RM_DISP_MODE_NORMAL) {
+		// 	GfuiScreenActivate(ReInfo->_reGameScreen);
+		// }
+		robot = s->cars[0]->robot;
+		tCar initState;
+		tSituation initSituation;
+		robot->rbGetInitState(initState, initSituation);
+		*s = initSituation;
+		s->cars[0]->robot = robot;
+		initState = tCar{ initState, s->cars[0] };
+		ReInfo->_reSimItf.setState(initState);
+		robot->rbNewRace(robot->index, s->cars[0], s, ReInfo);
+		elapsed = RCM_MAX_DT_ROBOTS;
 	}
 }
 
