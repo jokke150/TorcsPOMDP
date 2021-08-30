@@ -17,25 +17,19 @@ typedef float Action;
 struct TorcsState
 {
     TorcsState(const tSituation& s);
-    TorcsState(float angle, double currentTime, float steerLock);
-    float angle;
+    TorcsState(tCarElt& car, double currentTime);
     double currentTime;
-    float steerLock;
+    tCarElt car;
 };
 
 inline
 TorcsState::TorcsState(const tSituation& s) {
-    tCarElt* car = s.cars[0];
-    const float SC = 1.0;
-    angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
-    NORM_PI_PI(angle); // normalize the angle between -PI and + PI
-    angle -= SC * car->_trkPos.toMiddle / car->_trkPos.seg->width;
+    car = *s.cars[0];
     currentTime = s.currentTime;
-    steerLock = car->_steerLock;
 }
 
 inline
-TorcsState::TorcsState(float angle, double currentTime, float steerLock) : angle{ angle }, currentTime{ currentTime }, steerLock{ steerLock } {}
+TorcsState::TorcsState(tCarElt& car, double currentTime) : car{ car }, currentTime{ currentTime } {}
 
 struct DriverModelState
 {
@@ -113,10 +107,12 @@ void DriverModel::updateInPlace(const TorcsState& torcsState, DriverModelState& 
 
     if (modelState.isDistracted) {
         // Driver is distracted -> repeat last action
+        // TODO: Add noise?
     } else {
         // Driver is attentive -> steer to middle
         // TODO: Add more sophisticated driving behavior?
-        modelState.action = utils::Discretizer::discretize(driverActions, torcsState.angle / torcsState.steerLock);
+        // TODO: Add noise?
+        modelState.action = utils::Discretizer::discretize(driverActions, DrivingUtil::getOptimalSteer(torcsState.car));
         // modelState.action = DrivingUtil::getOptimalSteer(car)
         // getOptimalSteer
     }
@@ -142,7 +138,7 @@ DriverModelState DriverModel::sampleState(vector<Action>& driverActions, RandomN
             // Can be less than MIN_ATTENTIVE_ACTIONS otherwise
             numActionsRemaining = numActionsRemaining < MIN_ATTENTIVE_ACTIONS ? MIN_ATTENTIVE_ACTIONS : numActionsRemaining;
         }
-        action = -INFINITY;
+        action = 0;
     }
 
     return DriverModelState{isDistracted, numActionsRemaining, action };

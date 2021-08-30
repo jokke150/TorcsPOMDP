@@ -27,7 +27,7 @@
 #include <boost/functional/hash.hpp>
 #include <boost/thread.hpp>
 
-#define _POMCP_DEBUG_
+// #define _POMCP_DEBUG_
 #ifdef _POMCP_DEBUG_
 #include <assert.h>
 #endif

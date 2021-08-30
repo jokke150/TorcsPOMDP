@@ -60,15 +60,13 @@ State& State::operator=(const State& other)
 
 inline
 bool State::isTerminal() {
-    tCarElt* car = situation.cars[0];
-    double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
-	return absDistToMiddle >= TERMINAL_OFF_LANE_DIST;
+	return isTerminal(situation);
 }
 
 inline
 bool State::isTerminal(tSituation& situation) {
     tCarElt* car = situation.cars[0];
-    double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
+    double absDistToMiddle = abs(DrivingUtil::getDistToMiddle(*car));
 	return absDistToMiddle >= TERMINAL_OFF_LANE_DIST;
 }
 
@@ -172,19 +170,16 @@ Observation::Observation(tSituation& situation, float driverAction, int numActio
     lastDriverAction = utils::Discretizer::discretize(actions, driverAction);
 
     // Compute distance to middle
-    distToMiddle = 2 * car->_trkPos.toMiddle / (car->_trkPos.seg->width);
+    distToMiddle = DrivingUtil::getDistToMiddle(*car);
     distToMiddle = utils::Discretizer::discretize(middleBins, distToMiddle);
 
     // Compute distance to start
-    distToStart = car->_trkPos.seg->lgfromstart + 
-        (car->_trkPos.seg->type == TR_STR ? car->_trkPos.toStart : car->_trkPos.toStart * car->_trkPos.seg->radius);
+    distToStart = DrivingUtil::getDistToStart(*car);
     distToStart = distToStart >= START_BIN_SIZE ? std::round(distToStart / START_BIN_SIZE) : 0;
 
     // Compute the car angle wrt. the track axis
-    const float SC = 1.0;
-    angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
-    NORM_PI_PI(angle); // normalize the angle between -PI and + PI
-    angle -= SC * car->_trkPos.toMiddle / car->_trkPos.seg->width;
+    angle = DrivingUtil::getAngle(*car);
+    NORM_PI_PI(angle);
     angle = utils::Discretizer::discretize(Observation::angleBins, angle);
 
     speed = car->_speed_x;
@@ -270,13 +265,12 @@ double RewardCalculator::reward(const tSituation& nextState, const Action& actio
 inline
 double RewardCalculator::rewardAngleAndPosition(const tSituation& situation) 
 {
-    tCarElt *car = situation.cars[0];
-    double distToMiddle = 2 * car->_trkPos.toMiddle / (car->_trkPos.seg->width);
-    float angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
-    NORM_PI_PI(angle); // normalize the angle between -PI and + PI
-    angle -= car->_trkPos.toMiddle / car->_trkPos.seg->width;
-    angle = angle / PI; // normalize to [-1,1]
+    tCarElt* car = situation.cars[0];
+    double distToMiddle = DrivingUtil::getDistToMiddle(*car);
+    float angle = DrivingUtil::getAngle(*car);
+    // angle = angle / PI; // normalize to [-1,1]
     double reward = cos(angle + abs(distToMiddle));
+    // double reward = 1 - 0.5 * (abs(angle) + abs(distToMiddle));
     return reward > 0 ? reward : 0;
 }
 

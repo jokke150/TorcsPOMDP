@@ -75,6 +75,7 @@ class Driver {
 		double planningTime;
 		unsigned numSimulations;
 		double discount;
+		double exp_const;
 
 		/* last actions */
 		unsigned int lastActIdx;
@@ -90,6 +91,7 @@ class Driver {
 		float speed;
 		tCarElt *car; // pointer to tCarElt struct
 		bool targetSpeedReached;
+		bool targetPosReached;
 		double elapsed;
 
 		/* track variables */

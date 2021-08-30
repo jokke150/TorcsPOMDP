@@ -78,7 +78,7 @@ State& TorcsSimulator::sampleInitialState(State& state) const
 {
 	tCar envState;
 	raceEngineInfo._reSimItf.getState(&envState); // WE CHEAT HERE BY USING THE REAL TORCS STATE!
-	DriverModelState modelState = DriverModel::sampleState(driverActions, RANDOM);
+	DriverModelState modelState = DriverModel::sampleState(driverActions, RANDOM, true);
 	state = State{ realSituation, envState, modelState, 0 };
 	return state;
 }
@@ -88,10 +88,12 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 {
 	// test(state);
 
+	nextState = state;
+
 	const Action& agentAction = getAction(actionIndex);
 
 	// Get driver's action
-	TorcsState torcsState{ state.situation };
+	TorcsState torcsState{ nextState.situation };
 	DriverModel::updateInPlace(torcsState, nextState.modelState, driverActions, RANDOM);
 	float driverAction = nextState.modelState.action;
 
@@ -105,7 +107,6 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 inline
 bool TorcsSimulator::simulateStep(const State& state, const Action& agentAction, const Action& driverAction, State& nextState, double& reward) const
 {
-	nextState = state;
 	tSituation* situation = &nextState.situation;
 	tCarElt* car = situation->cars[0];
 	
@@ -120,10 +121,10 @@ bool TorcsSimulator::simulateStep(const State& state, const Action& agentAction,
 	situation->deltaTime = RCM_MAX_DT_SIMU;
 	while (elapsedTotal <= STEER_ACTION_FREQ) {
 		// Basic control updates
-		car->ctrl.gear = DrivingUtil::getGear(car);
-		car->ctrl.brakeCmd = DrivingUtil::getBrake(car);
+		car->ctrl.gear = DrivingUtil::getGear(*car);
+		car->ctrl.brakeCmd = DrivingUtil::getBrake(*car);
 		if (car->ctrl.brakeCmd == 0.0) {
-			car->ctrl.accelCmd = DrivingUtil::getAccel(car);
+			car->ctrl.accelCmd = DrivingUtil::getAccel(*car);
 		} else {
 			car->ctrl.accelCmd = 0.0;
 		}
@@ -167,10 +168,10 @@ void TorcsSimulator::test(const State& origState) const {
 		do {
 			if (elapsedLastCall >= RCM_MAX_DT_ROBOTS) {
 				// Basic control updates
-				car->ctrl.gear = DrivingUtil::getGear(car);
-				car->ctrl.brakeCmd = DrivingUtil::getBrake(car);
+				car->ctrl.gear = DrivingUtil::getGear(*car);
+				car->ctrl.brakeCmd = DrivingUtil::getBrake(*car);
 				if (car->ctrl.brakeCmd == 0.0) {
-					car->ctrl.accelCmd = DrivingUtil::getAccel(car);
+					car->ctrl.accelCmd = DrivingUtil::getAccel(*car);
 				} else {
 					car->ctrl.accelCmd = 0.0;
 				}
@@ -189,10 +190,10 @@ void TorcsSimulator::test(const State& origState) const {
 		do {
 			if (elapsedLastCall >= RCM_MAX_DT_ROBOTS) {
 				// Basic control updates
-				realCar->ctrl.gear = DrivingUtil::getGear(realCar);
-				realCar->ctrl.brakeCmd = DrivingUtil::getBrake(realCar);
+				realCar->ctrl.gear = DrivingUtil::getGear(*realCar);
+				realCar->ctrl.brakeCmd = DrivingUtil::getBrake(*realCar);
 				if (realCar->ctrl.brakeCmd == 0.0) {
-					realCar->ctrl.accelCmd = DrivingUtil::getAccel(realCar);
+					realCar->ctrl.accelCmd = DrivingUtil::getAccel(*realCar);
 				} else {
 					realCar->ctrl.accelCmd = 0.0;
 				}
