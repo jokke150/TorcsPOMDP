@@ -161,26 +161,28 @@ public:
         /**
      	 * Create a new POMCP planner
 	 * @param Simulator<S,Z,A>& simulator: A reference to the Simulator<S,Z,A> to be used, see MonteCarlo.hpp
-	 * @param plannigTimeout: Planning time in seconds
 	 * @param numSimulations: Number of simulatiobs to be performed while planning
-	 * @param resamplingTimeout: Time in seconds for resampling particles and increase the beliefe size after moving in the tree
 	 * @param threshold: Discount factor threshold to be used, the algorithm does not expand the tree at a
          *                   given depth if discount_factor^depth is less than the threshold.
 	 *	             See the POMCP paper for more information
 	 * @param explorationConstant: Exploration constant, see the POMCP paper for more information.
 	 * @param particlesInitialBelief: number of particles for the initial belief in the tree. The planner will sample until this
 	 *			number is reached, or resamplingTimeout.
+	 * @param particleResampling: Whether to perform particle resampling or not
+	 * @param numResamples: Desired number of resampled states during particle resampling
+	 * @param maxResamplingAttempts: Maximum trials for resampling states
 	 * @param particleReinvigoration: Whether to perform particle reinvigoration or not
 	 * @param numTransformations: Desired number of transformed states during particle reinvigoration
 	 * @param maxTransformationAttempts: Maximum trials for transforming states
      */
 	PomcpPlanner(Simulator<S,Z,A>& simulator, 
-			     double planningTimeout, 
 				 unsigned numSimulations, 
-				 double resamplingTimeout, 
 				 double threshold, 
 				 double explorationConstant, 
 				 unsigned particlesInitialBelief,
+				 bool particleResampling,
+				 unsigned numResamples,
+				 unsigned maxResamplingAttempts,
 				 bool particleReinvigoration,
 				 unsigned numTransformations,
 				 unsigned maxTransformationAttempts);
@@ -243,6 +245,9 @@ private:
 	double explorationConstant;
 	unsigned currentAction;
 	unsigned numParticlesInitialBelief;
+	bool particleResampling;
+	unsigned numResamples;
+	unsigned maxResamplingAttempts;
 	bool particleReinvigoration;
 	unsigned numTransformations;
 	unsigned maxTransformationAttempts;
@@ -254,23 +259,25 @@ private:
 template <typename S, typename Z, typename A, typename B>	
 inline
 PomcpPlanner<S,Z,A,B>::PomcpPlanner(Simulator<S,Z,A>& simulator, 
-									double timeout, 
 									unsigned numSimulations, 
-									double resamplingTimeout, 
 									double threshold, double 
 									explorationConstant, 
 									unsigned particlesInitialBelief,
+									bool particleResampling,
+									unsigned numResamples,
+									unsigned maxResamplingAttempts,
 									bool particleReinvigoration,
 									unsigned numTransformations,
 									unsigned maxTransformationAttempts)
 : simulator(simulator),
-  planningTimeout(timeout),
   numSimulations(numSimulations),
-  resamplingTimeout(resamplingTimeout),
   threshold(threshold),
   explorationConstant(explorationConstant),
   currentAction(simulator.getNumActions()),
   numParticlesInitialBelief(particlesInitialBelief),
+  particleResampling(particleResampling),
+  numResamples(numResamples),
+  maxResamplingAttempts(maxResamplingAttempts),
   particleReinvigoration(particleReinvigoration),
   numTransformations(numTransformations),
   maxTransformationAttempts(maxTransformationAttempts),
@@ -416,12 +423,12 @@ void PomcpPlanner<S,Z,A,B>::search()
 {
 	if (root->belief.empty()) {
 		S s0;
-		utils::Timer timer;
+		// utils::Timer timer;
+		// timer.elapsed()
 		do {
 			simulate(simulator.sampleInitialState(s0),root,1.0,0);
 			root->belief.add(s0);
 		} while (root->belief.size() < numParticlesInitialBelief); 
-		// } while (timer.elapsed() < (planningTimeout)); 
 	} else {
 		utils::Timer timer;
 		unsigned int n = 0;
@@ -429,7 +436,6 @@ void PomcpPlanner<S,Z,A,B>::search()
 			simulate(root->belief.sample(),root,1.0,0);
 			n++;
 		} while (n <= numSimulations);
-		// } while (timer.elapsed() < planningTimeout);
 	}
 	
 }
@@ -529,28 +535,36 @@ bool PomcpPlanner<S,Z,A,B>::moveTo(unsigned actionIndex, const Z& observation)
 		// Particle reinvigoration
 		if (particleReinvigoration) {
 			unsigned attempts = 0;
-			unsigned transformations = 0;
-			S state = it->second->belief.sample();
+			unsigned successes = 0;
+			S state = root->belief.sample();
+			S nextState = it->second->belief.sample();
 			do {
-				S transformedState;
-				if (simulator.transform(state, observation, transformedState)) {
-					it->second->belief.add(transformedState);
-					transformations++;
+				S transformedNextState;
+				if (simulator.transform(state, actionIndex, nextState, observation, transformedNextState)) {
+					it->second->belief.add(transformedNextState);
+					successes++;
 				}
 				attempts++;
-			} while (attempts <= maxTransformationAttempts && transformations <= numTransformations);
+			} while (attempts <= maxTransformationAttempts && successes <= numTransformations);
 		}
 
-		// utils::Timer timer;
-		// do {
-		// 	Z sObservation;
-		// 	double reward;
-		// 	S nextState;
-		// 	simulator.simulate(root->belief.sample(), actionIndex, nextState, sObservation, reward,0);
-		// 	if (observation == sObservation) {
-		// 		it->second->belief.add(nextState);
-		// 	}
-		// } while (timer.elapsed() < resamplingTimeout);
+		// Particle resampling
+		if (particleResampling) {
+			unsigned attempts = 0;
+			unsigned successes = 0;
+			do {
+				Z sObservation;
+				double reward;
+				S nextState;
+				simulator.simulate(root->belief.sample(), actionIndex, nextState, sObservation, reward,0);
+				if (observation == sObservation) {
+					it->second->belief.add(nextState);
+					successes++;
+				}
+				attempts++;
+			// } while (attempts <= maxResamplingAttempts && successes <= numResamples);
+			} while (successes <= numResamples);
+		}
 
 		Node<S,Z,B>* nextRoot = it->second;
 		boost::thread freeMemThread(eraseNodeAndChilds,edge,root);

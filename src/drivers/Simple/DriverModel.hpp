@@ -91,12 +91,14 @@ void DriverModel::update(TorcsState& torcsState)
 inline 
 void DriverModel::updateInPlace(const TorcsState& torcsState, DriverModelState& modelState, vector<Action>& driverActions, RandomNumberGenerator& rng) 
 {
+    bool overCorrect = false;
     if (modelState.numActionsRemaining == 0) {
         if (modelState.isDistracted) {
             modelState.numActionsRemaining = rng(MAX_DISTRACTED_ACTIONS + 1);
             modelState.numActionsRemaining = modelState.numActionsRemaining < MIN_DISTRACTED_ACTIONS ? 
                 MIN_DISTRACTED_ACTIONS : modelState.numActionsRemaining;
             modelState.isDistracted = false;
+            overCorrect = DRIVER_OVER_CORRECT;
         } else {
             modelState.numActionsRemaining = rng(MAX_ATTENTIVE_ACTIONS + 1);
             modelState.numActionsRemaining = modelState.numActionsRemaining < MIN_ATTENTIVE_ACTIONS ? 
@@ -105,16 +107,28 @@ void DriverModel::updateInPlace(const TorcsState& torcsState, DriverModelState& 
         }
     }
 
+    float& action = modelState.action;
     if (modelState.isDistracted) {
         // Driver is distracted -> repeat last action
-        // TODO: Add noise?
+        if (DRIVER_ACTION_NOISE) {
+            action += action * rng.getReal(-DRIVER_NOISE_DIST_MAX, DRIVER_NOISE_DIST_MAX);
+        }
+        if (DRIVER_DISCRETE_ACTIONS) {
+            action = utils::Discretizer::discretize(driverActions, action);
+        }
     } else {
-        // Driver is attentive -> steer to middle
-        // TODO: Add more sophisticated driving behavior?
-        // TODO: Add noise?
-        modelState.action = utils::Discretizer::discretize(driverActions, DrivingUtil::getOptimalSteer(torcsState.car));
-        // modelState.action = DrivingUtil::getOptimalSteer(car)
-        // getOptimalSteer
+        // Driver is attentive
+        action = DrivingUtil::getOptimalSteer(torcsState.car);
+
+        if (overCorrect && action != 0) {
+            action += action * rng.getReal(DRIVER_COR_FACTOR_MIN, DRIVER_COR_FACTOR_MAX);
+        }
+        if (DRIVER_ACTION_NOISE) {
+            action += action * rng.getReal(-DRIVER_NOISE_ATT_MAX, DRIVER_NOISE_ATT_MAX);
+        }
+        if (DRIVER_DISCRETE_ACTIONS) {
+            action = utils::Discretizer::discretize(driverActions, action);
+        }
     }
     modelState.numActionsRemaining--;
 }
@@ -122,7 +136,7 @@ void DriverModel::updateInPlace(const TorcsState& torcsState, DriverModelState& 
 inline 
 DriverModelState DriverModel::sampleState(vector<Action>& driverActions, RandomNumberGenerator& rng, bool initial = false) 
 {
-    bool isDistracted = rng.getBool();
+    bool isDistracted = INITIAL_ATTENTIVE ? false : rng.getBool();
     float action;
     unsigned numActionsRemaining;
     if (isDistracted) {
@@ -131,7 +145,11 @@ DriverModelState DriverModel::sampleState(vector<Action>& driverActions, RandomN
             // Can be less than MIN_DISTRACTED_ACTIONS otherwise
             numActionsRemaining = numActionsRemaining < MIN_DISTRACTED_ACTIONS ? MIN_DISTRACTED_ACTIONS : numActionsRemaining;
         }
-        action = driverActions[rng(driverActions.size())];
+        if (DRIVER_DISCRETE_ACTIONS) {
+            action = driverActions[rng(driverActions.size())];
+        } else{
+            action = rng.getReal(-1, 1);
+        }
     } else {
         numActionsRemaining = rng(MAX_ATTENTIVE_ACTIONS + 1);
         if (initial) {
@@ -151,17 +169,5 @@ DriverModelState DriverModel::sampleState(vector<Action>& driverActions, RandomN
     state.action = action;
     return state;
 }
-
-// inline
-// const vector<float> DriverModel::durationBins = []()
-// { 
-//     vector<float> bins;
-//     int numBins = (maxAttentionDuration - minAttentionDuration) * 60 / 10; // In 1/10 second bins
-//     bins.reserve(numBins);
-//     for (int i = 1; i <= numBins; i++) {
-//         bins.push_back(1 + (((maxAttentionDuration - minAttentionDuration) / numBins ) * i)); // TODO: Account for distracted
-//     }
-//     return bins;
-// }();
 
 }

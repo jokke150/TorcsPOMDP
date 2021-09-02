@@ -82,7 +82,7 @@ linuxModLoad(unsigned int /* gfid */, char *sopath, tModList **modlist)
 		if ((fModInfo = (tfModInfo)dlsym(handle, dname)) != NULL) {
 			/* DLL loaded, init function exists, call it... */
 			if (fModInfo(curMod->modInfo) == 0) {
-				GfOut(">>> %s >>>\n", sopath);
+				// GfOut(">>> %s >>>\n", sopath);
 				curMod->handle = handle;
 				curMod->sopath = strdup(sopath);
 				if (*modlist == NULL) {
@@ -450,7 +450,7 @@ linuxModUnloadList(tModList **modlist)
 	do {
 		curMod = nextMod;
 		nextMod = curMod->next;
-		GfOut("<<< %s unloaded <<<\n", curMod->sopath);
+		// GfOut("<<< %s unloaded <<<\n", curMod->sopath);
 		
 		lastSlash = strrchr(curMod->sopath, '/');
 		if (lastSlash) {

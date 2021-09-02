@@ -36,9 +36,9 @@ void Driver::newRace(tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 		totalReward = 0;
 		bool isFinished = false;
 		if (SEARCH_DISCOUNT) {
-			std::tie(isFinished, agentScenario, discount, actions, binSize, planningTime, numSimulations, exp_const) = GridSearch::getInstance().getNextDiscountScenario();
+			std::tie(isFinished, agentScenario, discount, actions, binSize, numSimulations, exp_const) = GridSearch::getInstance().getNextDiscountScenario();
 		} else {
-			std::tie(isFinished, agentScenario, discount, actions, binSize, planningTime, numSimulations, exp_const) = GridSearch::getInstance().getNextScenarios();
+			std::tie(isFinished, agentScenario, discount, actions, binSize, numSimulations, exp_const) = GridSearch::getInstance().getNextScenarios();
 		}
 		if (isFinished) {
 			// Experiment is finished
@@ -52,8 +52,19 @@ void Driver::newRace(tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 
 	simulator = new TorcsSimulator{ *s, *ReInfo, actions, driverActions, binSize, discount };
 	if (agentScenario == "planner") {
-		planner = new PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>>{ *simulator, 
-			planningTime, numSimulations, RESAMPLING_TIME, THRESHOLD, exp_const, PARTICLES, PARTICLE_REINV, (unsigned) (numSimulations * TRANSFER_QUOTA), (unsigned) (numSimulations * TRANSFER_QUOTA) }; 
+		planner = new PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>>
+		{ 
+			*simulator, 
+			numSimulations, 
+			THRESHOLD, 
+			exp_const, PARTICLES, 
+			PARTICLE_RESAMP, 
+			(unsigned) (numSimulations * RESAMP_QUOTA), 
+			(unsigned) (numSimulations * RESAMP_QUOTA), 
+			PARTICLE_REINV, 
+			(unsigned) (numSimulations * TRANSFER_QUOTA), 
+			(unsigned) (numSimulations * TRANSFER_QUOTA) 
+		}; 
 	}
 	// We use the #run as seed so that the episodes of the different solution methods are comparable
 	driverModel = new DriverModel(driverActions, runs);
@@ -64,9 +75,15 @@ void Driver::newRace(tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 		fileName += " d" + std::to_string(DISCOUNT_SCENARIOS[GridSearch::getInstance().discountScenarioIdx]);
 	} else if (agentScenario == "planner") {
 		fileName += " b" + std::to_string(GridSearch::getInstance().binsScenarioIdx);
-		fileName += " p" + std::to_string(GridSearch::getInstance().planningTimeScenarioIdx);
-		fileName += " s" + std::to_string(GridSearch::getInstance().numSimsScenarioIdx);
+		fileName += " s" + std::to_string(NUM_SIMS_SCENARIOS[GridSearch::getInstance().numSimsScenarioIdx]);
 		fileName += " c" + std::to_string(EXP_CONST_SCENARIOS[GridSearch::getInstance().expConstScenarioIdx]);
+		fileName += DRIVER_OVER_CORRECT ? " over correct" : "";
+		fileName += !DRIVER_DISCRETE_ACTIONS ? " cont" : "";
+		fileName += DRIVER_ACTION_NOISE ? " noisy" : "";
+		fileName += AUTONOMOUS ? " autonomous" : "";
+		fileName += PARTICLE_REINV ? " reinv " + std::to_string(TRANSFER_QUOTA) : "";
+		fileName += PARTICLE_RESAMP ? " resamp" : "";
+		fileName += " (1)";
 	}
     ofs.open ( fileName + ".csv", std::ofstream::out | std::ofstream::app);
 
@@ -117,7 +134,7 @@ void Driver::drive(tSituation *s, tRmInfo *ReInfo)
 
 		if (actionsCount) {
 			// Only update planner after first action
-			Observation obs = Observation(*s, lastDriverAction, actionsCount, actions);
+			Observation obs = Observation(*s, lastDriverAction, actionsCount, driverActions);
 
 			unsigned depth, size;
 			depth = size = 0;
@@ -156,9 +173,15 @@ void Driver::drive(tSituation *s, tRmInfo *ReInfo)
 			}
 		}
 
-		// Determine driver's action (discretized)
-		driverModel->update(torcsState);
-		float driverAction = driverModel->getAction();
+		// Determine driver's action
+		float driverAction;
+		if (AUTONOMOUS) {
+			driverAction = 0;
+		} else {
+			driverModel->update(torcsState);
+			driverAction = driverModel->getAction();
+		}
+		
 		
 		unsigned agentActionIdx = 0;
 		float agentAction;

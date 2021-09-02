@@ -74,7 +74,7 @@ class Observation
 {   
 public:
     Observation() = default;
-    Observation(tSituation& situation, float lastDriverAction, int numActions, vector<Action>& actions);
+    Observation(tSituation& situation, float lastDriverAction, int numActions, vector<Action>& driverActions);
     bool operator==(Observation const& other) const;
     
     static void setAngleBins(int numAngleBins);
@@ -141,7 +141,7 @@ inline vector<float> Observation::angleBins = {};
 inline vector<float> Observation::middleBins = {};
 
 inline
-Observation::Observation(tSituation& situation, float driverAction, int numActions, vector<Action>& actions) : 
+Observation::Observation(tSituation& situation, float driverAction, int numActions, vector<Action>& driverActions) : 
     numActions{ numActions }
 {
     tCarElt *car = situation.cars[0];
@@ -167,7 +167,7 @@ Observation::Observation(tSituation& situation, float driverAction, int numActio
     // }
 
     // Discretize last driver action
-    lastDriverAction = utils::Discretizer::discretize(actions, driverAction);
+    lastDriverAction = utils::Discretizer::discretize(driverActions, driverAction);
 
     // Compute distance to middle
     distToMiddle = DrivingUtil::getDistToMiddle(*car);

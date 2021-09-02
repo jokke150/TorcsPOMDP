@@ -72,7 +72,6 @@ class Driver {
 		vector<float> actions;
 		vector<float> driverActions;
 		int binSize;
-		double planningTime;
 		unsigned numSimulations;
 		double discount;
 		double exp_const;

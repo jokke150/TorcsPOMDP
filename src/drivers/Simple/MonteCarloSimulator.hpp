@@ -133,6 +133,7 @@ public:
 		}
 		return validActions;
 	}
+	// TODO: Update doc!
 	/**
    	 * Transform a given state so that it gives the same observation as the original state.
 	 * @param state: [IN] state to be trabsformed
@@ -140,7 +141,7 @@ public:
 	 * @param transformedState [IN/OUT] the transformed state
 	 * @return true if a transformation was found
 	 */
-	virtual bool transform(const S& state, const Z& observation, S& transformedState) const = 0;
+	virtual bool transform(const S& state, unsigned actionIndex, const S& nextState, const Z& observation, S& transformedNextState) const = 0;
 };
 
 }

@@ -86,6 +86,13 @@ public:
    	 */
 	bool getBool();
 	/**
+   	 * Get a random real number lo <= x <= up following an uniform distribution
+	 * @param lo: the lower bound for the number (included)
+	 * @param up: the upper bound for the number (included)
+	 * @return: A random real number
+   	 */
+	double getReal(double lo, double up);
+	/**
    	 * Get a random real number following a normal distribution
 	 * @param mean: mean of the normal distribution
 	 * @param stddev: standard deviation of the normal distribution
@@ -115,6 +122,12 @@ bool RandomNumberGenerator::getBool()
 	return (bool) distribution(gen);
 }
 
+inline
+double RandomNumberGenerator::getReal(double lo, double up)
+{
+	std::uniform_real_distribution<double> distribution(lo, nextafter(up, std::numeric_limits<double>::infinity()));
+	return distribution(gen);
+}
 
 inline
 double RandomNumberGenerator::operator()(double mean, double stddev)
