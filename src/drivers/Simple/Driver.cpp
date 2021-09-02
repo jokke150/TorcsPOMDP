@@ -83,7 +83,6 @@ void Driver::newRace(tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 		fileName += AUTONOMOUS ? " autonomous" : "";
 		fileName += PARTICLE_REINV ? " reinv " + std::to_string(TRANSFER_QUOTA) : "";
 		fileName += PARTICLE_RESAMP ? " resamp" : "";
-		fileName += " (1)";
 	}
     ofs.open ( fileName + ".csv", std::ofstream::out | std::ofstream::app);
 	ofs2.open ( fileName + ".txt", std::ofstream::out | std::ofstream::app);
