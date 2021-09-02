@@ -85,6 +85,7 @@ class Driver {
 		/* persistence */
 		std::ofstream ofs;
 		csv::CSVWriter<std::ofstream, false> writer = make_csv_writer_buffered(ofs);
+		std::ofstream ofs2;
 
 		/* race state */
 		float speed;

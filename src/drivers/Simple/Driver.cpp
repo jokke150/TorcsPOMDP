@@ -86,6 +86,7 @@ void Driver::newRace(tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 		fileName += " (1)";
 	}
     ofs.open ( fileName + ".csv", std::ofstream::out | std::ofstream::app);
+	ofs2.open ( fileName + ".txt", std::ofstream::out | std::ofstream::app);
 
     if (runs == 0) {
         writer << std::vector<std::string>({"Run", "Count", "Cheat", "Terminal", "Size", "Depth", "Speed", "Angle", "Reward", "Gain", "From Start", 
@@ -235,9 +236,11 @@ void Driver::restart(tCarElt* car)
     double avgReward = totalReward / runs;
     std::cout << "Restarting" << std::endl;
     std::cout << "Average reward after " << runs << " runs: " << avgReward << std::endl;
+	ofs2 << "Average reward after " << runs << " runs: " << avgReward << std::endl;
 
     writer.flush();
     ofs.close();
+	ofs2.close();
 
 	if (agentScenario == "planner") {
         delete planner;
