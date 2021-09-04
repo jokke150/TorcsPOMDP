@@ -174,6 +174,7 @@ public:
 	 * @param particleReinvigoration: Whether to perform particle reinvigoration or not
 	 * @param numTransformations: Desired number of transformed states during particle reinvigoration
 	 * @param maxTransformationAttempts: Maximum trials for transforming states
+	 * @param preferActions: Use preferred actions or not
      */
 	PomcpPlanner(Simulator<S,Z,A>& simulator, 
 				 unsigned numSimulations, 
@@ -185,7 +186,8 @@ public:
 				 unsigned maxResamplingAttempts,
 				 bool particleReinvigoration,
 				 unsigned numTransformations,
-				 unsigned maxTransformationAttempts);
+				 unsigned maxTransformationAttempts,
+				 bool preferActions);
 	virtual ~PomcpPlanner()
 	{
 		simulator.cleanup();
@@ -251,6 +253,7 @@ private:
 	bool particleReinvigoration;
 	unsigned numTransformations;
 	unsigned maxTransformationAttempts;
+	bool preferActions;
 		
 	Node<S,Z,B> *root;
 	std::vector<unsigned> actionIndexes;
@@ -268,7 +271,8 @@ PomcpPlanner<S,Z,A,B>::PomcpPlanner(Simulator<S,Z,A>& simulator,
 									unsigned maxResamplingAttempts,
 									bool particleReinvigoration,
 									unsigned numTransformations,
-									unsigned maxTransformationAttempts)
+									unsigned maxTransformationAttempts,
+									bool preferActions)
 : simulator(simulator),
   numSimulations(numSimulations),
   threshold(threshold),
@@ -281,6 +285,7 @@ PomcpPlanner<S,Z,A,B>::PomcpPlanner(Simulator<S,Z,A>& simulator,
   particleReinvigoration(particleReinvigoration),
   numTransformations(numTransformations),
   maxTransformationAttempts(maxTransformationAttempts),
+  preferActions(preferActions),
   root(new Node<S,Z,B>())
 {
 	
@@ -314,6 +319,9 @@ template<typename S, typename Z, typename A, typename B>
 inline
 unsigned PomcpPlanner<S,Z,A,B>::getRolloutAction(const S& state)
 {
+	if (preferActions) {
+		return simulator.samplePreferredAction(state);
+	}
 	if (simulator.allActionsAreValid(state)) {
 		return utils::RANDOM(simulator.getNumActions());
 	}
@@ -356,6 +364,9 @@ double PomcpPlanner<S,Z,A,B>::simulate(const S& state, Node<S,Z,B>* node, double
 		} else {
 			simulator.getValidActions(state,node->validActions);
 			node->actionData.resize(node->validActions.size());
+		}
+		if (preferActions) {
+			simulator.updatePreferredActionValues(node->actionData); // TODO
 		}
 		return rollout(state, depth, depthLevel);
 	}

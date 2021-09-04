@@ -136,7 +136,7 @@ void DriverModel::updateInPlace(const TorcsState& torcsState, DriverModelState& 
 inline 
 DriverModelState DriverModel::sampleState(vector<Action>& driverActions, RandomNumberGenerator& rng, bool initial = false) 
 {
-    bool isDistracted = INITIAL_ATTENTIVE ? false : rng.getBool();
+    bool isDistracted = initial && INITIAL_ATTENTIVE ? false : rng.getBool();
     float action;
     unsigned numActionsRemaining;
     if (isDistracted) {

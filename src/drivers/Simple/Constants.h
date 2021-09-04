@@ -20,7 +20,7 @@ namespace pomdp
     static const double RESAMP_QUOTA = 1.0;
 
     /* experiment constants */
-    static const unsigned TARGET_RUNS = 10;
+    static const unsigned TARGET_RUNS = 20;
     static const float TARGET_SPEED = 80 * 1000 / 60 / 60;         /* [m/s] ~80 kph */	
     static const double STEER_ACTION_FREQ = 0.1;
     static constexpr float STEER_LOOKAHEAD = 5;	// [m]
@@ -28,12 +28,12 @@ namespace pomdp
     static const bool AUTONOMOUS = false; // No driver, just the planner
 
     /* episode constants */
-    static const unsigned TARGET_ACTIONS = 1000;	
+    static const unsigned TARGET_ACTIONS = 600;	
 
     /* grid search constants */
     static const string INITIAL_AGENT_SCENARIO = "planner"; // "planner" -> "driver" -> "optimal"
     static const bool SEARCH_DISCOUNT = false;
-    static const double DEFAULT_DISCOUNT = pow(THRESHOLD, (1.0/4)); // 5 Actions
+    static const double DEFAULT_DISCOUNT = THRESHOLD / 2; // 5 Actions
 
     /* race constants */
     static const float FULL_ACCEL_MARGIN = 1.0;     /* [m/s] */
@@ -50,7 +50,7 @@ namespace pomdp
 
     static const vector<vector<float>> ACTION_SCENARIOS{ {-2, -1, -0.75, -0.5, -0.25, -0.15, -0.1, 0, 0.1, 0.15, 0.25, 0.5, 0.75, 1, 2} }; // {-2, -1, -0.5, 0, 0.5, 1, 2}, {-2, -1, -0.75, -0.5, -0.25, -0.15, -0.1, 0, 0.1, 0.15, 0.25, 0.5, 0.75, 1, 2}, {-2, -1.75, -1.5, -1.25, -1.15, -1.1, -1, -0.75, -0.5, -0.25, -0.15 -0.1, 0, 0.1, 0.15, 0.25, 0.5, 0.75, 1, 1.1, 1.15, 1.25, 1.5, 1.75, 2}
     static const vector<int> BIN_SCNEARIOS{ 1001 }; // Must be an odd number
-    static const vector<unsigned> NUM_SIMS_SCENARIOS{ 10000 }; // 10, 100, 200, 300, 400, 500, 750, 1000, 1500, 2500, 5000, 7500, 10000
+    static const vector<unsigned> NUM_SIMS_SCENARIOS{ 1000 }; // 10, 100, 200, 300, 400, 500, 750, 1000, 1500, 2500, 5000, 7500, 10000
     static const vector<double> DISCOUNT_SCENARIOS
     { 
         THRESHOLD / 2, // Discount horizon:  1
@@ -63,7 +63,7 @@ namespace pomdp
         pow(THRESHOLD, (1.0/49)),        // 50
         pow(THRESHOLD, (1.0/59))         // 60
     };
-    static const vector<double> EXP_CONST_SCENARIOS{ 0.75 }; // 0, 0.25, 0.5, 0.75, 1, 2, 3, 4, 5, 10, 15, 25
+    static const vector<double> EXP_CONST_SCENARIOS{ 0.5 }; // 0, 0.25, 0.5, 0.75, 1, 2, 3, 4, 5, 10, 15, 25
 
     /* driver model constants */
     static const bool INITIAL_ATTENTIVE = false;
@@ -71,7 +71,7 @@ namespace pomdp
     static const double DRIVER_COR_FACTOR_MIN = 0.10;
     static const double DRIVER_COR_FACTOR_MAX = 0.25;
     static const bool DRIVER_DISCRETE_ACTIONS = true;
-    static const bool DRIVER_ACTION_NOISE = true;
+    static const bool DRIVER_ACTION_NOISE = false;
     static const double DRIVER_NOISE_DIST_MAX = 0.15;
     static const double DRIVER_NOISE_ATT_MAX = 0.05;
     static const unsigned MIN_ATTENTIVE_ACTIONS = (float) 1 / STEER_ACTION_FREQ; // #Actions for one second of simulated time

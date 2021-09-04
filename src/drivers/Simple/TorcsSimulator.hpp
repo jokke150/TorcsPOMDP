@@ -46,7 +46,8 @@ public:
 	virtual const Action& getAction(unsigned actionIndex) const {return actions[actionIndex];}
 	virtual bool allActionsAreValid(const State& state) const {return true;}
 	virtual bool isValidAction(const State& state, unsigned actionIndex) const {return true;}
-	virtual bool transform(const State& state, unsigned actionIndex, const State& nextState, const Observation& observation, State& transformedNextState) const;
+	virtual Action& samplePreferredAction(const State& state) const;
+	virtual bool transform(const State& prevState, unsigned lastActionIndex, const State& curState, const Observation& observation, State& transformedState) const;
 
 	void test(const State& origState) const; // TODO: Remove
 private:
@@ -232,12 +233,18 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 }
 
 inline
-bool TorcsSimulator::transform(const State& state, unsigned actionIndex, const State& nextState, const Observation& observation, State& transformedNextState) const
+Action& TorcsSimulator::samplePreferredAction(const State& state) const
+{
+	return; // TODO
+}
+
+inline
+bool TorcsSimulator::transform(const State& prevState, unsigned lastActionIndex, const State& curState, const Observation& observation, State& transformedState) const
 {
 	if (DRIVER_DISCRETE_ACTIONS) {
-		Action driverAction = nextState.modelState.action;
-		transformedNextState = nextState;
-		transformedNextState.modelState = DriverModel::sampleState(driverActions, RANDOM, driverAction);
+		Action driverAction = curState.modelState.action;
+		transformedState = curState;
+		transformedState.modelState = DriverModel::sampleState(driverActions, RANDOM, driverAction);
 		return true;
 	} else {
 		Action observedAction = observation.lastDriverAction;
@@ -247,13 +254,13 @@ bool TorcsSimulator::transform(const State& state, unsigned actionIndex, const S
 		double upperHalfDist = idx < driverActions.size() - 1 ? (driverActions[idx + 1] - observedAction) / 2 : 0;
 		Action driverAction = (Action) RANDOM.getReal(observedAction - lowerHalfDist, observedAction + upperHalfDist); 
 
-		transformedNextState = state;
-		const Action agentAction = getAction(actionIndex);
+		transformedState = prevState;
+		const Action agentAction = getAction(lastActionIndex);
 		double reward;
-		simulateStep(state, agentAction, driverAction, transformedNextState, reward);
-		transformedNextState.modelState = DriverModel::sampleState(driverActions, RANDOM, driverAction);
+		simulateStep(prevState, agentAction, driverAction, transformedState, reward);
+		transformedState.modelState = DriverModel::sampleState(driverActions, RANDOM, driverAction);
 
-		Observation sObservation = Observation{ transformedNextState.situation, driverAction, transformedNextState.actionsCount, driverActions};
+		Observation sObservation = Observation{ transformedState.situation, driverAction, transformedState.actionsCount, driverActions};
 		return observation == sObservation;
 	}
 	

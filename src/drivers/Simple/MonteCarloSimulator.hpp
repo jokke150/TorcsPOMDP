@@ -133,15 +133,22 @@ public:
 		}
 		return validActions;
 	}
-	// TODO: Update doc!
+	/**
+   	 * Samples an action from a preferred action distribution.
+	 * @param state: [IN] one state
+	 * @return an action
+	 */
+	virtual A& samplePreferredAction(const S& state) const = 0
 	/**
    	 * Transform a given state so that it gives the same observation as the original state.
-	 * @param state: [IN] state to be trabsformed
+	 * @param prevState: [IN] previous state
+	 * @param lastActionIndex [IN] action that led to current state
+	 * @param curState: [IN] current state to be transformed
 	 * @param observation: [IN] the expected observation
 	 * @param transformedState [IN/OUT] the transformed state
 	 * @return true if a transformation was found
 	 */
-	virtual bool transform(const S& state, unsigned actionIndex, const S& nextState, const Z& observation, S& transformedNextState) const = 0;
+	virtual bool transform(const S& prevState, unsigned lastActionIndex, const S& curState, const Z& observation, S& transformedState) const = 0;
 };
 
 }

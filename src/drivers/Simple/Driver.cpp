@@ -77,12 +77,16 @@ void Driver::newRace(tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 		fileName += " b" + std::to_string(GridSearch::getInstance().binsScenarioIdx);
 		fileName += " s" + std::to_string(NUM_SIMS_SCENARIOS[GridSearch::getInstance().numSimsScenarioIdx]);
 		fileName += " c" + std::to_string(EXP_CONST_SCENARIOS[GridSearch::getInstance().expConstScenarioIdx]);
+		fileName += " d" + std::to_string(discount);
+		fileName += " runs" + std::to_string(TARGET_RUNS);
 		fileName += DRIVER_OVER_CORRECT ? " over correct" : "";
 		fileName += !DRIVER_DISCRETE_ACTIONS ? " cont" : "";
 		fileName += DRIVER_ACTION_NOISE ? " noisy" : "";
 		fileName += AUTONOMOUS ? " autonomous" : "";
 		fileName += PARTICLE_REINV ? " reinv " + std::to_string(TRANSFER_QUOTA) : "";
 		fileName += PARTICLE_RESAMP ? " resamp" : "";
+		fileName += INITIAL_ATTENTIVE ? " initial att" : "";
+
 	}
     ofs.open ( fileName + ".csv", std::ofstream::out | std::ofstream::app);
 	ofs2.open ( fileName + ".txt", std::ofstream::out | std::ofstream::app);
