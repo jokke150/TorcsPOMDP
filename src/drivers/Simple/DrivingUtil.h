@@ -82,24 +82,12 @@ int DrivingUtil::getGear(const tCarElt& car)
 inline 
 float DrivingUtil::getOptimalSteer(const tCarElt& car)
 {
-	// float trackangle = RtTrackSideTgAngleL(&(car._trkPos));
-	// float angle = trackangle - car._yaw;
-	// NORM_PI_PI(angle);
-
 	float targetAngle;
 	v2d target = getTargetPoint(car);
-
 	targetAngle = atan2(target.y - car._pos_Y, target.x - car._pos_X);
 	targetAngle -= car._yaw;
 	NORM_PI_PI(targetAngle);
-	// targetAngle -= car._trkPos.toMiddle / car._trkPos.seg->width;
-	return (targetAngle / car._steerLock); // TODO: /2 works well for some reason
-
-	// float angle =  RtTrackSideTgAngleL(&(car._trkPos)) - car._yaw;
-    // NORM_PI_PI(angle); // normalize the angle between -PI and + PI
-    // angle -= car._trkPos.toMiddle / car._trkPos.seg->width;
-
-	// return angle / car._steerLock;
+	return (targetAngle / car._steerLock);
 }
 
 /* compute target point for steering */
@@ -108,7 +96,6 @@ v2d DrivingUtil::getTargetPoint(const tCarElt& car)
 {
 	tTrackSeg *seg = car._trkPos.seg;
 	float lookahead = STEER_LOOKAHEAD;
-	// float lookahead = car._speed_x * STEER_ACTION_FREQ;
 	float length = getDistToSegEnd(car);
 
 	while (length < lookahead) {
@@ -177,29 +164,6 @@ double DrivingUtil::getDistToMiddle(const tCarElt& car)
 		return 2 * car._trkPos.toMiddle / car._trkPos.seg->width; // This is for a one-lane track
 	}
 }
-
-
-/* Compute the allowed speed on a segment */
-// inline
-// float DrivingUtil::getAllowedSpeed(tTrackSeg *segment, float CA)
-// {
-// 	if (segment->type == TR_STR) {
-// 		return FLT_MAX;
-// 	} else {
-// 		float arc = 0.0;
-// 		tTrackSeg *s = segment;
-
-// 		while (s->type == segment->type && arc < PI/2.0) {
-// 			arc += s->arc;
-// 			s = s->next;
-// 		}
-
-// 		arc /= PI/2.0;
-// 		float mu = segment->surface->kFriction;
-// 		float r = (segment->radius + segment->width/2.0)/sqrt(arc);
-// 		return sqrt((mu*G*r)/(1.0 - MIN(1.0, r*CA*mu/mass)));
-// 	}
-// }
 
 }
 

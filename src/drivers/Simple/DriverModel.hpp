@@ -3,7 +3,6 @@
 
 #include "Random.hpp"
 #include "Discretizer.hpp"
-#include "Constants.h"
 #include "DrivingUtil.h"
 
 using std::vector;
@@ -42,26 +41,32 @@ struct DriverModelState
 class DriverModel
 {
 public:
-    DriverModel(vector<Action>& driverActions, unsigned randSeed);
+    DriverModel(vector<Action>& driverActions, unsigned randSeed, bool overCorrect, bool noise, bool driverInitAtt);
 
     DriverModelState getState();
     void setState(DriverModelState modelState);
     float getAction();
     void update(TorcsState& torcsState);
 
-    static void updateInPlace(const TorcsState& torcsState, DriverModelState& modelState, vector<Action>& driverActions, RandomNumberGenerator& rng);
-    static DriverModelState sampleState(vector<Action>& driverActions, RandomNumberGenerator& rng, bool initial);
+    static void updateInPlace(const TorcsState& torcsState, DriverModelState& modelState, vector<Action>& driverActions, 
+                              RandomNumberGenerator& rng, bool overCorrect, bool noise);
+    static DriverModelState sampleState(vector<Action>& driverActions, RandomNumberGenerator& rng, bool driverInitAtt, bool initial);
     static DriverModelState sampleState(vector<Action>& driverActions, RandomNumberGenerator& rng, float action);
 private:
     DriverModelState state;
     vector<Action>& driverActions;
     RandomNumberGenerator rng;
+    bool overCorrect;
+     bool noise;
+     bool driverInitAtt;
 };
 
 inline 
-DriverModel::DriverModel(vector<Action>& driverActions, unsigned randSeed) : driverActions{ driverActions }, rng{ RandomNumberGenerator(randSeed) }
+DriverModel::DriverModel(vector<Action>& driverActions, unsigned randSeed, bool overCorrect, bool noise, bool driverInitAtt) 
+                        : driverActions{ driverActions }, rng{ RandomNumberGenerator(randSeed) }, 
+                          overCorrect{ overCorrect }, noise{ noise }, driverInitAtt{ driverInitAtt }
 {
-    state = sampleState(driverActions, rng, true);
+    state = sampleState(driverActions, rng, driverInitAtt, true);
 }
 
 inline 
@@ -84,21 +89,22 @@ float DriverModel::getAction()
 inline 
 void DriverModel::update(TorcsState& torcsState) 
 {
-    updateInPlace(torcsState, state, driverActions, rng);
+    updateInPlace(torcsState, state, driverActions, rng, overCorrect, noise);
 }
 
 
 inline 
-void DriverModel::updateInPlace(const TorcsState& torcsState, DriverModelState& modelState, vector<Action>& driverActions, RandomNumberGenerator& rng) 
+void DriverModel::updateInPlace(const TorcsState& torcsState, DriverModelState& modelState, vector<Action>& driverActions, 
+                                RandomNumberGenerator& rng, bool overCorrect, bool noise) 
 {
-    bool overCorrect = false;
+    bool overCorrectNow = false;
     if (modelState.numActionsRemaining == 0) {
         if (modelState.isDistracted) {
             modelState.numActionsRemaining = rng(MAX_DISTRACTED_ACTIONS + 1);
             modelState.numActionsRemaining = modelState.numActionsRemaining < MIN_DISTRACTED_ACTIONS ? 
                 MIN_DISTRACTED_ACTIONS : modelState.numActionsRemaining;
             modelState.isDistracted = false;
-            overCorrect = DRIVER_OVER_CORRECT;
+            overCorrectNow = overCorrect;
         } else {
             modelState.numActionsRemaining = rng(MAX_ATTENTIVE_ACTIONS + 1);
             modelState.numActionsRemaining = modelState.numActionsRemaining < MIN_ATTENTIVE_ACTIONS ? 
@@ -110,7 +116,7 @@ void DriverModel::updateInPlace(const TorcsState& torcsState, DriverModelState& 
     float& action = modelState.action;
     if (modelState.isDistracted) {
         // Driver is distracted -> repeat last action
-        if (DRIVER_ACTION_NOISE) {
+        if (noise) {
             action += action * rng.getReal(-DRIVER_NOISE_DIST_MAX, DRIVER_NOISE_DIST_MAX);
         }
         if (DRIVER_DISCRETE_ACTIONS) {
@@ -120,10 +126,10 @@ void DriverModel::updateInPlace(const TorcsState& torcsState, DriverModelState& 
         // Driver is attentive
         action = DrivingUtil::getOptimalSteer(torcsState.car);
 
-        if (overCorrect && action != 0) {
+        if (overCorrectNow && action != 0) {
             action += action * rng.getReal(DRIVER_COR_FACTOR_MIN, DRIVER_COR_FACTOR_MAX);
         }
-        if (DRIVER_ACTION_NOISE) {
+        if (noise) {
             action += action * rng.getReal(-DRIVER_NOISE_ATT_MAX, DRIVER_NOISE_ATT_MAX);
         }
         if (DRIVER_DISCRETE_ACTIONS) {
@@ -134,9 +140,9 @@ void DriverModel::updateInPlace(const TorcsState& torcsState, DriverModelState& 
 }
 
 inline 
-DriverModelState DriverModel::sampleState(vector<Action>& driverActions, RandomNumberGenerator& rng, bool initial = false) 
+DriverModelState DriverModel::sampleState(vector<Action>& driverActions, RandomNumberGenerator& rng, bool driverInitAtt, bool initial) 
 {
-    bool isDistracted = initial && INITIAL_ATTENTIVE ? false : rng.getBool();
+    bool isDistracted = initial && driverInitAtt ? false : rng.getBool();
     float action;
     unsigned numActionsRemaining;
     if (isDistracted) {
@@ -165,7 +171,7 @@ DriverModelState DriverModel::sampleState(vector<Action>& driverActions, RandomN
 inline 
 DriverModelState DriverModel::sampleState(vector<Action>& driverActions, RandomNumberGenerator& rng, float action) 
 {
-    DriverModelState state = sampleState(driverActions, rng);
+    DriverModelState state = sampleState(driverActions, rng, false, false);
     state.action = action;
     return state;
 }

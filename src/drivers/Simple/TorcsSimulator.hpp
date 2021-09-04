@@ -35,7 +35,8 @@ public:
 	* @param initSituation: Reference to the initial torcs state
     * Create a new simulator
     */
-	TorcsSimulator(tSituation& situation, tRmInfo& raceEngineInfo, vector<Action>& actions, vector<Action>& driverActions, int numBins, double discount);
+	TorcsSimulator(tSituation& situation, tRmInfo& raceEngineInfo, vector<Action>& actions, vector<Action>& driverActions, 
+				   int numBins, double discount, bool driverOverCorrect, bool driverNoise, bool driverInitAtt);
 	virtual ~TorcsSimulator();
 	virtual double getDiscount() const {return discount;}
 	virtual State& sampleInitialState(State& state) const;
@@ -46,7 +47,7 @@ public:
 	virtual const Action& getAction(unsigned actionIndex) const {return actions[actionIndex];}
 	virtual bool allActionsAreValid(const State& state) const {return true;}
 	virtual bool isValidAction(const State& state, unsigned actionIndex) const {return true;}
-	virtual Action& samplePreferredAction(const State& state) const;
+	virtual const Action& samplePreferredAction(const State& state) const;
 	virtual bool transform(const State& prevState, unsigned lastActionIndex, const State& curState, const Observation& observation, State& transformedState) const;
 
 	void test(const State& origState) const; // TODO: Remove
@@ -57,7 +58,10 @@ private:
 	vector<Action>& driverActions;
 	int numBins;
 	double discount;
-	
+	bool driverOverCorrect;
+	bool driverNoise;
+	bool driverInitAtt;
+
 	// Generative model
 	tModList *modList = 0;
 	tSimItf genModel;
@@ -65,8 +69,10 @@ private:
 };
 
 inline
-TorcsSimulator::TorcsSimulator(tSituation& situation, tRmInfo& raceEngineInfo, vector<Action>& actions, vector<Action>& driverActions, int numBins, double discount) 
-	: raceEngineInfo{raceEngineInfo}, realSituation{situation}, actions{ actions }, driverActions{ driverActions }, numBins{ numBins }, discount { discount }
+TorcsSimulator::TorcsSimulator(tSituation& situation, tRmInfo& raceEngineInfo, vector<Action>& actions, vector<Action>& driverActions, 
+							   int numBins, double discount, bool driverOverCorrect, bool driverNoise, bool driverInitAtt) 
+	: raceEngineInfo{raceEngineInfo}, realSituation{situation}, actions{ actions }, driverActions{ driverActions }, 
+	  numBins{ numBins }, discount { discount }, driverOverCorrect { driverOverCorrect }, driverNoise{ driverNoise }, driverInitAtt{ driverInitAtt }
 {
 	loadGenModel();
 }
@@ -85,7 +91,7 @@ State& TorcsSimulator::sampleInitialState(State& state) const
 	// We use select random if our belief diverges so far from the true state that we cannot find an observation in the tree anymore.
 	tCar envState;
 	raceEngineInfo._reSimItf.getState(&envState);
-	DriverModelState modelState = DriverModel::sampleState(driverActions, RANDOM, true);
+	DriverModelState modelState = DriverModel::sampleState(driverActions, RANDOM, driverInitAtt, true);
 	state = State{ realSituation, envState, modelState, 0 };
 	return state;
 }
@@ -105,7 +111,7 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 		driverAction = 0;
 	} else {
 		TorcsState torcsState{ state.situation };
-		DriverModel::updateInPlace(torcsState, nextState.modelState, driverActions, RANDOM);
+		DriverModel::updateInPlace(torcsState, nextState.modelState, driverActions, RANDOM, driverOverCorrect, driverNoise);
 		driverAction = nextState.modelState.action;
 	}
 
@@ -233,9 +239,9 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 }
 
 inline
-Action& TorcsSimulator::samplePreferredAction(const State& state) const
+const Action& TorcsSimulator::samplePreferredAction(const State& state) const
 {
-	return; // TODO
+	return getAction(0); // TODO
 }
 
 inline

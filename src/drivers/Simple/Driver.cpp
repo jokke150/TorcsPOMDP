@@ -30,63 +30,51 @@ void Driver::newRace(tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 	targetPosReached = false;
 	elapsed = STEER_ACTION_FREQ; // Use planner to steer immediately after target speed is reached
 
-    // Grid search for hyperparameters
-	if (runs == 0 || runs == TARGET_RUNS) {
-        runs = 0;
-		totalReward = 0;
-		bool isFinished = false;
-		if (SEARCH_DISCOUNT) {
-			std::tie(isFinished, agentScenario, discount, actions, binSize, numSimulations, exp_const) = GridSearch::getInstance().getNextDiscountScenario();
-		} else {
-			std::tie(isFinished, agentScenario, discount, actions, binSize, numSimulations, exp_const) = GridSearch::getInstance().getNextScenarios();
-		}
-		if (isFinished) {
-			// Experiment is finished
-			car->END = true;
-			return;
-		}
-        driverActions = std::vector<Action>(actions.begin() + 1, actions.end() - 1); // Agent can overrule driver with "oversteering"
-		Observation::setAngleBins(binSize);
-        Observation::setMiddleBins(binSize);
+	if (runs == 0) {
+		// Read config file
+		std::tie(scenarioName, agentScenario, targetRuns, targetActions, 
+				 numSims, agentActions, driverActions, discount, expConst, 
+				 driverInitAtt, driverOverCorrect, driverNoise, preferActions) = utils::ConfigReader::getConfig();
+
+		// Init discretization
+		Observation::setAngleBins(NUM_BINS);
+        Observation::setMiddleBins(NUM_BINS);
 	}
 
-	simulator = new TorcsSimulator{ *s, *ReInfo, actions, driverActions, binSize, discount };
+	simulator = new TorcsSimulator{ *s, *ReInfo, agentActions, driverActions, NUM_BINS, discount, driverOverCorrect, driverNoise, driverInitAtt };
 	if (agentScenario == "planner") {
 		planner = new PomcpPlanner<State, Observation, Action, pomcp::VectorBelief<State>>
 		{ 
 			*simulator, 
-			numSimulations, 
+			numSims, 
 			THRESHOLD, 
-			exp_const, PARTICLES, 
+			expConst, 
+			PARTICLES, 
 			PARTICLE_RESAMP, 
-			(unsigned) (numSimulations * RESAMP_QUOTA), 
-			(unsigned) (numSimulations * RESAMP_QUOTA), 
+			(unsigned) (numSims * RESAMP_QUOTA), 
+			(unsigned) (numSims * RESAMP_QUOTA), 
 			PARTICLE_REINV, 
-			(unsigned) (numSimulations * TRANSFER_QUOTA), 
-			(unsigned) (numSimulations * TRANSFER_QUOTA) 
+			(unsigned) (numSims * TRANSFER_QUOTA), 
+			(unsigned) (numSims * TRANSFER_QUOTA),
+			preferActions 
 		}; 
 	}
 	// We use the #run as seed so that the episodes of the different solution methods are comparable
-	driverModel = new DriverModel(driverActions, runs);
+	driverModel = new DriverModel(driverActions, runs, driverOverCorrect, driverNoise, driverInitAtt);
 
 	// CSV Writer
-	string fileName = agentScenario + " a" + std::to_string(GridSearch::getInstance().actionsScenarioIdx);
-	if (SEARCH_DISCOUNT) {
-		fileName += " d" + std::to_string(DISCOUNT_SCENARIOS[GridSearch::getInstance().discountScenarioIdx]);
-	} else if (agentScenario == "planner") {
-		fileName += " b" + std::to_string(GridSearch::getInstance().binsScenarioIdx);
-		fileName += " s" + std::to_string(NUM_SIMS_SCENARIOS[GridSearch::getInstance().numSimsScenarioIdx]);
-		fileName += " c" + std::to_string(EXP_CONST_SCENARIOS[GridSearch::getInstance().expConstScenarioIdx]);
+	string fileName = scenarioName + " " + agentScenario + " r" + std::to_string(targetRuns) + " a" + std::to_string(targetActions);
+	if (agentScenario == "planner") {
+		fileName += " s" + std::to_string(numSims);
+		fileName += " c" + std::to_string(expConst);
 		fileName += " d" + std::to_string(discount);
-		fileName += " runs" + std::to_string(TARGET_RUNS);
-		fileName += DRIVER_OVER_CORRECT ? " over correct" : "";
+		fileName += driverOverCorrect ? " over correct" : "";
 		fileName += !DRIVER_DISCRETE_ACTIONS ? " cont" : "";
-		fileName += DRIVER_ACTION_NOISE ? " noisy" : "";
+		fileName += driverNoise ? " noisy" : "";
 		fileName += AUTONOMOUS ? " autonomous" : "";
-		fileName += PARTICLE_REINV ? " reinv " + std::to_string(TRANSFER_QUOTA) : "";
+		fileName += PARTICLE_REINV ? " reinv" : "";
 		fileName += PARTICLE_RESAMP ? " resamp" : "";
-		fileName += INITIAL_ATTENTIVE ? " initial att" : "";
-
+		fileName += driverInitAtt ? " initial att" : "";
 	}
     ofs.open ( fileName + ".csv", std::ofstream::out | std::ofstream::app);
 	ofs2.open ( fileName + ".txt", std::ofstream::out | std::ofstream::app);
@@ -150,7 +138,7 @@ void Driver::drive(tSituation *s, tRmInfo *ReInfo)
 			// Calculate and sum up reward
 			// discount *= simulator->getDiscount();
 			// reward  += discount * RewardCalculator::reward(*s, actions[lastActIdx]);
-			double rewardGain = RewardCalculator::reward(*s, actions[lastActIdx]);
+			double rewardGain = RewardCalculator::reward(*s, agentActions[lastActIdx]);
 			reward += rewardGain;
 
 			float angle = DrivingUtil::getAngle(*car);
@@ -162,7 +150,7 @@ void Driver::drive(tSituation *s, tRmInfo *ReInfo)
 
 			writer << std::make_tuple(runs, actionsCount, cheat ? "cheat" : "fair", isTerminal, size, depth, speed, angle, reward, rewardGain, distToStart, 
 									distToMiddle, isDistracted, s->currentTime, driverModel->getState().numActionsRemaining, lastOptimalAction, lastCombinedAction,
-									actions[lastActIdx], lastDriverAction);
+									agentActions[lastActIdx], lastDriverAction);
 
 			// Restart race and start next run if terminal state is reached
 			if (isTerminal) {
@@ -171,7 +159,7 @@ void Driver::drive(tSituation *s, tRmInfo *ReInfo)
 			}
 
 			// Restart race and start next run if target number of actions is reached
-			if (actionsCount == TARGET_ACTIONS) {
+			if (actionsCount == targetActions) {
 				std::cout<<"Episode finished after "<<actionsCount<<" actions."<<std::endl;
 				return restart(car);
 			}
@@ -186,7 +174,6 @@ void Driver::drive(tSituation *s, tRmInfo *ReInfo)
 			driverAction = driverModel->getAction();
 		}
 		
-		
 		unsigned agentActionIdx = 0;
 		float agentAction;
 		float optimalAction = DrivingUtil::getOptimalSteer(*car);
@@ -197,13 +184,13 @@ void Driver::drive(tSituation *s, tRmInfo *ReInfo)
 				agentActionIdx = planner->getAction();
 			} else {
 				// Select random
-				agentActionIdx = utils::RANDOM(actions.size());
+				agentActionIdx = utils::RANDOM(agentActions.size());
 			}
-			agentAction = actions[agentActionIdx];
+			agentAction = agentActions[agentActionIdx];
 		} else if (agentScenario == "optimal") {
 			float minDistance = 10;
-			for(int i = 0; i < actions.size(); i++) {
-				float action = actions[i];
+			for(int i = 0; i < agentActions.size(); i++) {
+				float action = agentActions[i];
 				float combined = std::max(std::min(driverAction + action, 1.0f), -1.0f);
 				float optimal = DrivingUtil::getOptimalSteer(*car);
 				float distance = abs(optimal - combined);
@@ -251,7 +238,13 @@ void Driver::restart(tCarElt* car)
 	delete simulator;
     delete driverModel;
 
-    car->RESTART = true;
+	if (runs == targetRuns) {
+		// Experiment is finished
+		car->END = true;
+		return;
+	} else {
+		car->RESTART = true;
+	}
 }
 
 /* End of the current race */

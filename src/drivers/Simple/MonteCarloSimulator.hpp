@@ -138,7 +138,7 @@ public:
 	 * @param state: [IN] one state
 	 * @return an action
 	 */
-	virtual A& samplePreferredAction(const S& state) const = 0
+	virtual const A& samplePreferredAction(const S& state) const = 0;
 	/**
    	 * Transform a given state so that it gives the same observation as the original state.
 	 * @param prevState: [IN] previous state

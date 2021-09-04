@@ -35,7 +35,7 @@ Changes since 1.2.3-bw-unofficial-test2
   grvtxtable.cpp 1.12) (Bernhard, report by Eric).
 - Add resolutions for windowed mode, so 320x240, 640x480 and 800x600 are always
   in the list if you have enabled xrandr (Bernhard).
-- Set default optimization to -O2, was -O3 before (Bernhard).
+- Set default optimization to -O0, was -O3 before (Bernhard).
 - Updated Windows plib to 1.8.3 without multithreading (replaced /MT with /ML)
   (Bernhard).
 - Fixed all warnings (level W2) for the windows build (please add "f" to

@@ -161,7 +161,7 @@ public:
         /**
      	 * Create a new POMCP planner
 	 * @param Simulator<S,Z,A>& simulator: A reference to the Simulator<S,Z,A> to be used, see MonteCarlo.hpp
-	 * @param numSimulations: Number of simulatiobs to be performed while planning
+	 * @param numSims: Number of simulatiobs to be performed while planning
 	 * @param threshold: Discount factor threshold to be used, the algorithm does not expand the tree at a
          *                   given depth if discount_factor^depth is less than the threshold.
 	 *	             See the POMCP paper for more information
@@ -177,7 +177,7 @@ public:
 	 * @param preferActions: Use preferred actions or not
      */
 	PomcpPlanner(Simulator<S,Z,A>& simulator, 
-				 unsigned numSimulations, 
+				 unsigned numSims, 
 				 double threshold, 
 				 double explorationConstant, 
 				 unsigned particlesInitialBelief,
@@ -241,7 +241,7 @@ private:
 	Simulator<S,Z,A>& simulator;
 
 	double planningTimeout;
-	unsigned numSimulations;
+	unsigned numSims;
 	double resamplingTimeout;
 	double threshold;
 	double explorationConstant;
@@ -262,7 +262,7 @@ private:
 template <typename S, typename Z, typename A, typename B>	
 inline
 PomcpPlanner<S,Z,A,B>::PomcpPlanner(Simulator<S,Z,A>& simulator, 
-									unsigned numSimulations, 
+									unsigned numSims, 
 									double threshold, double 
 									explorationConstant, 
 									unsigned particlesInitialBelief,
@@ -274,7 +274,7 @@ PomcpPlanner<S,Z,A,B>::PomcpPlanner(Simulator<S,Z,A>& simulator,
 									unsigned maxTransformationAttempts,
 									bool preferActions)
 : simulator(simulator),
-  numSimulations(numSimulations),
+  numSims(numSims),
   threshold(threshold),
   explorationConstant(explorationConstant),
   currentAction(simulator.getNumActions()),
@@ -366,7 +366,7 @@ double PomcpPlanner<S,Z,A,B>::simulate(const S& state, Node<S,Z,B>* node, double
 			node->actionData.resize(node->validActions.size());
 		}
 		if (preferActions) {
-			simulator.updatePreferredActionValues(node->actionData); // TODO
+			// simulator.updatePreferredActionValues(node->actionData); // TODO
 		}
 		return rollout(state, depth, depthLevel);
 	}
@@ -446,7 +446,7 @@ void PomcpPlanner<S,Z,A,B>::search()
 		do {
 			simulate(root->belief.sample(),root,1.0,0);
 			n++;
-		} while (n <= numSimulations);
+		} while (n <= numSims);
 	}
 	
 }

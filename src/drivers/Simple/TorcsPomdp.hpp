@@ -274,37 +274,4 @@ double RewardCalculator::rewardAngleAndPosition(const tSituation& situation)
     return reward > 0 ? reward : 0;
 }
 
-inline
-double RewardCalculator::rewardPosition(const tSituation& situation) 
-{
-    tCarElt *car = situation.cars[0];
-    double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
-    double reward = absDistToMiddle <= 1 ? REWARD_CENTER * std::pow(0.01, absDistToMiddle) : PENALTY_OFF_LANE;
-    return reward;
-}
-
-inline
-double RewardCalculator::penaltyActionIntensity(const tSituation& situation, const Action& action) 
-{
-    tCarElt *car = situation.cars[0];
-    double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
-    double penalty = (1 - std::min(absDistToMiddle, 1.0)) * pow(abs(action), PENALTY_INTENSITY_EXP);
-    return penalty;
-}
-
-inline
-double RewardCalculator::rewardAngle(const tSituation& situation) 
-{
-    tCarElt *car = situation.cars[0];
-    double absDistToMiddle = abs(2*car->_trkPos.toMiddle/(car->_trkPos.seg->width));
-    const float SC = 1.0;
-    float angle =  RtTrackSideTgAngleL(&(car->_trkPos)) - car->_yaw;
-    NORM_PI_PI(angle); // normalize the angle between -PI and + PI
-    angle -= SC * car->_trkPos.toMiddle / car->_trkPos.seg->width;
-    float absAngle = abs(angle); 
-    absAngle /= PI; // normalize to [0, 1]
-    double reward = absDistToMiddle <= 1 ? REWARD_CENTER * std::pow(0.01, absAngle) : PENALTY_OFF_LANE;
-    return reward;
-}
-
 }

@@ -15,9 +15,9 @@
 #include <robottools.h>
 #include <robot.h>
 
-#include <csv.hpp>
+#include "csv.hpp"
 
-#include "GridSearch.h"
+#include "ConfigReader.h"
 #include "TorcsSimulator.hpp"
 #include "Pomcp.hpp"
 #include "Constants.h"
@@ -25,6 +25,7 @@
 
 using std::vector;
 using std::tuple;
+using std::string;
 
 using namespace pomcp;
 using namespace csv;
@@ -68,13 +69,19 @@ class Driver {
 		bool cheat;
 
 		/* grid search state */
-		std::string agentScenario;
-		vector<float> actions;
+		string scenarioName;
+		string agentScenario;
+		unsigned targetRuns;
+		unsigned targetActions;
+		unsigned numSims;
+		vector<float> agentActions;
 		vector<float> driverActions;
-		int binSize;
-		unsigned numSimulations;
 		double discount;
-		double exp_const;
+		double expConst;
+		bool driverInitAtt;
+		bool driverOverCorrect;
+		bool driverNoise;
+		bool preferActions;
 
 		/* last actions */
 		unsigned int lastActIdx;
