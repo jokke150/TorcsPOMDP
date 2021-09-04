@@ -1,6 +1,7 @@
 #include <iostream>
 #include <vector>
 #include <math.h>
+#include <sstream>
 
 #include "SimpleIni.h"
 
@@ -9,14 +10,24 @@ using std::string;
 
 #define CONFIG_FILE "/home/jokke/Repositories/TorcsPOMDP/experiment/Launcher/src/config.ini"
 #define THRESHOLD 0.1
-// #define RUNS_SPLIT_THRESHOLD 1500
-// #define RUNS_SPLIT 5
 
-static const vector<unsigned> NUM_SIMS_SCENARIOS{ 10, 100, 200, 300, 400, 500, 750, 1000, 1500, 2500, 5000, 7500, 10000 };
-static const vector<double> EXP_CONST_SCENARIOS{ 0.5, 0.75, 1.5, 5, 10, 25 };
-static const vector<double> DISCOUNT_SCENARIOS{ pow(THRESHOLD, (1.0/4)),   //  5
-												pow(THRESHOLD, (1.0/9)),   // 10
-        										pow(THRESHOLD, (1.0/24))}; // 25
+static vector<unsigned> NUM_SIMS_SCENARIOS;
+static vector<double> EXP_CONST_SCENARIOS;
+static vector<double> DISCOUNT_SCENARIOS;
+
+template <typename T>
+vector<T> parseScenarios(string scenariosString) {
+	vector<T> scenarios;
+	std::istringstream iss(scenariosString);
+    string item;
+    while (std::getline(iss, item, ',')) {
+		std::stringstream ss(item);
+		T scenario;
+		ss >> scenario;
+        scenarios.push_back(scenario);
+    }
+	return scenarios;
+}
 
 bool getScenario(size_t& numSimsScenarioIdx, size_t& expConstScenarioIdx, size_t& discountScenarioIdx) 
 {
@@ -51,12 +62,14 @@ void printConfig(unsigned numSims, double expConst, double discount) {
 	std::cout << std::to_string(numSims) + " Simulations, " + std::to_string(expConst) + " exploration constant, " + std::to_string(discount) + " discount" <<std::endl;
 }
 
-void writeConfig(unsigned numSims, double expConst, double discount) {
-	CSimpleIniA ini;
+void readConfig(CSimpleIniA& ini) {
 	ini.SetUnicode();
 	SI_Error rc = ini.LoadFile(CONFIG_FILE);
 	checkRC(rc);
+}
 
+void writeConfig(CSimpleIniA& ini, unsigned numSims, double expConst, double discount) {
+	SI_Error rc;
 	rc = ini.SetValue("grid search", "NUM_SIMS", std::to_string(numSims).c_str());
 	checkRC(rc);
 
@@ -76,6 +89,12 @@ void launch() {
 
 int main(int argc, char *argv[])
 {
+	CSimpleIniA ini;
+	readConfig(ini);
+
+	NUM_SIMS_SCENARIOS = parseScenarios<unsigned>(ini.GetValue("grid search", "NUM_SIMS_SCENARIOS"));
+	EXP_CONST_SCENARIOS = parseScenarios<double>(ini.GetValue("grid search", "EXP_CONST_SCENARIOS"));
+	DISCOUNT_SCENARIOS = parseScenarios<double>(ini.GetValue("grid search", "DISCOUNT_SCENARIOS"));
 	
 	size_t numSimsScenarioIdx = -1; // Initially negative 
 	size_t expConstScenarioIdx = 0;
@@ -86,7 +105,7 @@ int main(int argc, char *argv[])
 		double expConst = EXP_CONST_SCENARIOS[expConstScenarioIdx];
 		double discount = DISCOUNT_SCENARIOS[discountScenarioIdx];
 		printConfig(numSims, expConst, discount);
-		writeConfig(numSims, expConst, discount);
+		writeConfig(ini, numSims, expConst, discount);
 		launch();
 	}
 
