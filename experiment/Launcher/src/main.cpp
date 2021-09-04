@@ -2,8 +2,13 @@
 #include <vector>
 #include <math.h>
 #include <sstream>
+#include <chrono>
+#include <thread>
 
 #include "SimpleIni.h"
+
+using namespace std::this_thread; // sleep_for, sleep_until
+using namespace std::chrono; // nanoseconds, system_clock, seconds
 
 using std::vector;
 using std::string;
@@ -85,6 +90,7 @@ void writeConfig(CSimpleIniA& ini, unsigned numSims, double expConst, double dis
 
 void launch() {
 	system("screen -d -m torcs -L /home/jokke/Repositories/TorcsPOMDP/build/lib/torcs -D /home/jokke/Repositories/TorcsPOMDP/build/share/games/torcs -r /home/jokke/Repositories/TorcsPOMDP/build/share/games/torcs/config/raceman/quickrace.xml -d &");
+	sleep_for(seconds(10));
 }
 
 int main(int argc, char *argv[])
@@ -92,9 +98,9 @@ int main(int argc, char *argv[])
 	CSimpleIniA ini;
 	readConfig(ini);
 
-	NUM_SIMS_SCENARIOS = parseScenarios<unsigned>(ini.GetValue("grid search", "NUM_SIMS_SCENARIOS"));
-	EXP_CONST_SCENARIOS = parseScenarios<double>(ini.GetValue("grid search", "EXP_CONST_SCENARIOS"));
-	DISCOUNT_SCENARIOS = parseScenarios<double>(ini.GetValue("grid search", "DISCOUNT_SCENARIOS"));
+	NUM_SIMS_SCENARIOS = parseScenarios<unsigned>(ini.GetValue("manual", "NUM_SIMS_SCENARIOS"));
+	EXP_CONST_SCENARIOS = parseScenarios<double>(ini.GetValue("manual", "EXP_CONST_SCENARIOS"));
+	DISCOUNT_SCENARIOS = parseScenarios<double>(ini.GetValue("manual", "DISCOUNT_SCENARIOS"));
 	
 	size_t numSimsScenarioIdx = -1; // Initially negative 
 	size_t expConstScenarioIdx = 0;
