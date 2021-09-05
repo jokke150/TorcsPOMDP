@@ -2,6 +2,7 @@
 #include <vector>
 #include <math.h>
 #include <sstream>
+
 #include <chrono>
 #include <thread>
 
@@ -63,8 +64,8 @@ void checkRC(int rc) {
 	};
 }
 
-void printConfig(unsigned numSims, double expConst, double discount) {
-	std::cout << std::to_string(numSims) + " Simulations, " + std::to_string(expConst) + " exploration constant, " + std::to_string(discount) + " discount" <<std::endl;
+void printConfig(string scenarioName, unsigned numSims, double expConst, double discount) {
+	std::cout << scenarioName + ": " + std::to_string(numSims) + " Simulations, " + std::to_string(expConst) + " exploration constant, " + std::to_string(discount) + " discount" <<std::endl;
 }
 
 void readConfig(CSimpleIniA& ini) {
@@ -98,6 +99,7 @@ int main(int argc, char *argv[])
 	CSimpleIniA ini;
 	readConfig(ini);
 
+	string scenarioName = ini.GetValue("manual", "SCENARIO_NAME");
 	NUM_SIMS_SCENARIOS = parseScenarios<unsigned>(ini.GetValue("manual", "NUM_SIMS_SCENARIOS"));
 	EXP_CONST_SCENARIOS = parseScenarios<double>(ini.GetValue("manual", "EXP_CONST_SCENARIOS"));
 	DISCOUNT_SCENARIOS = parseScenarios<double>(ini.GetValue("manual", "DISCOUNT_SCENARIOS"));
@@ -110,7 +112,7 @@ int main(int argc, char *argv[])
 		unsigned numSims = NUM_SIMS_SCENARIOS[numSimsScenarioIdx];
 		double expConst = EXP_CONST_SCENARIOS[expConstScenarioIdx];
 		double discount = DISCOUNT_SCENARIOS[discountScenarioIdx];
-		printConfig(numSims, expConst, discount);
+		printConfig(scenarioName, numSims, expConst, discount);
 		writeConfig(ini, numSims, expConst, discount);
 		launch();
 	}
