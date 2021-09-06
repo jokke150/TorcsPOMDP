@@ -64,8 +64,10 @@ void checkRC(int rc) {
 	};
 }
 
-void printConfig(string scenarioName, unsigned numSims, double expConst, double discount) {
-	std::cout << scenarioName + ": " + std::to_string(numSims) + " Simulations, " + std::to_string(expConst) + " exploration constant, " + std::to_string(discount) + " discount" <<std::endl;
+string printConfig(string scenarioName, unsigned numSims, double expConst, double discount) {
+        string config = scenarioName + ": " + std::to_string(numSims) + " Simulations, " + std::to_string(expConst) + " exploration constant, " + std::to_string(discount) + " discount";
+        std::cout << config  << std::endl;
+        return config;
 }
 
 void readConfig(CSimpleIniA& ini) {
@@ -89,8 +91,13 @@ void writeConfig(CSimpleIniA& ini, unsigned numSims, double expConst, double dis
 	checkRC(rc);
 }
 
-void launch() {
-	system("screen -d -m torcs -L /home/jokke/Repositories/TorcsPOMDP/build/lib/torcs -D /home/jokke/Repositories/TorcsPOMDP/build/share/games/torcs -r /home/jokke/Repositories/TorcsPOMDP/build/share/games/torcs/config/raceman/quickrace.xml -d &");
+void launch(string& config, bool log) {
+	string command = "screen ";
+	if (log) {
+		command += "-L -Logfile " + config + ".log ";
+	}
+	command += "-d -m torcs -L /home/jokke/Repositories/TorcsPOMDP/build/lib/torcs -D /home/jokke/Repositories/TorcsPOMDP/build/share/games/torcs -r /home/jokke/Repositories/TorcsPOMDP/build/share/games/torcs/config/raceman/quickrace.xml -d &";
+	system(command.c_str());
 	sleep_for(seconds(10));
 }
 
@@ -100,6 +107,7 @@ int main(int argc, char *argv[])
 	readConfig(ini);
 
 	string scenarioName = ini.GetValue("manual", "SCENARIO_NAME");
+	bool log = ini.GetValue("manual", "LOGGING");
 	NUM_SIMS_SCENARIOS = parseScenarios<unsigned>(ini.GetValue("manual", "NUM_SIMS_SCENARIOS"));
 	EXP_CONST_SCENARIOS = parseScenarios<double>(ini.GetValue("manual", "EXP_CONST_SCENARIOS"));
 	DISCOUNT_SCENARIOS = parseScenarios<double>(ini.GetValue("manual", "DISCOUNT_SCENARIOS"));
@@ -112,9 +120,9 @@ int main(int argc, char *argv[])
 		unsigned numSims = NUM_SIMS_SCENARIOS[numSimsScenarioIdx];
 		double expConst = EXP_CONST_SCENARIOS[expConstScenarioIdx];
 		double discount = DISCOUNT_SCENARIOS[discountScenarioIdx];
-		printConfig(scenarioName, numSims, expConst, discount);
+		string config = printConfig(scenarioName, numSims, expConst, discount);
 		writeConfig(ini, numSims, expConst, discount);
-		launch();
+		launch(config, log);
 	}
 
 	return 0;
