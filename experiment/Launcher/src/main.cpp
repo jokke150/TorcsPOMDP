@@ -91,12 +91,9 @@ void writeConfig(CSimpleIniA& ini, unsigned numSims, double expConst, double dis
 	checkRC(rc);
 }
 
-void launch(string& config, bool log) {
-	string command = "screen ";
-	if (log) {
-		command += "-L -Logfile " + config + ".log ";
-	}
-	command += "-d -m torcs -L /home/jokke/Repositories/TorcsPOMDP/build/lib/torcs -D /home/jokke/Repositories/TorcsPOMDP/build/share/games/torcs -r /home/jokke/Repositories/TorcsPOMDP/build/share/games/torcs/config/raceman/quickrace.xml -d &";
+void launch(string& config) {
+	string command = "screen -d -m ";
+	command += "torcs -L /home/jokke/Repositories/TorcsPOMDP/build/lib/torcs -D /home/jokke/Repositories/TorcsPOMDP/build/share/games/torcs -r /home/jokke/Repositories/TorcsPOMDP/build/share/games/torcs/config/raceman/quickrace.xml -d &";
 	system(command.c_str());
 	sleep_for(seconds(10));
 }
@@ -107,7 +104,6 @@ int main(int argc, char *argv[])
 	readConfig(ini);
 
 	string scenarioName = ini.GetValue("manual", "SCENARIO_NAME");
-	bool log = ini.GetValue("manual", "LOGGING");
 	NUM_SIMS_SCENARIOS = parseScenarios<unsigned>(ini.GetValue("manual", "NUM_SIMS_SCENARIOS"));
 	EXP_CONST_SCENARIOS = parseScenarios<double>(ini.GetValue("manual", "EXP_CONST_SCENARIOS"));
 	DISCOUNT_SCENARIOS = parseScenarios<double>(ini.GetValue("manual", "DISCOUNT_SCENARIOS"));
@@ -122,7 +118,7 @@ int main(int argc, char *argv[])
 		double discount = DISCOUNT_SCENARIOS[discountScenarioIdx];
 		string config = printConfig(scenarioName, numSims, expConst, discount);
 		writeConfig(ini, numSims, expConst, discount);
-		launch(config, log);
+		launch(config);
 	}
 
 	return 0;
