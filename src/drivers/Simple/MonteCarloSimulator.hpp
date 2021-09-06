@@ -24,6 +24,21 @@
 namespace pomcp
 {
 /**
+ * class ActionData
+ *
+ * A structure containing information related to the actions that can be executed from a node of the search tree
+ *
+ * @author Ignacio Perez
+ */
+struct ActionData
+{
+	ActionData() : counter(0), value(0) {}
+	virtual ~ActionData() {}
+	unsigned counter;
+	double value;
+};
+
+/**
  * class Simulator<S,Z,A>
  *
  * This interface should be implemented in order to be used by the Pomcp Planner

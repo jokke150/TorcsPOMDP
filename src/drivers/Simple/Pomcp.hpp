@@ -86,21 +86,6 @@ struct EdgeHasher
 };
 
 /**
- * class ActionData
- *
- * A structure containing information related to the actions that can be executed from a node of the search tree
- *
- * @author Ignacio Perez
- */
-struct ActionData
-{
-	ActionData() : counter(0), value(0) {}
-	virtual ~ActionData() {}
-	unsigned counter;
-	double value;
-};
-
-/**
  * class Node<S,Z,B>
  *
  * A structure representing the nodes of the search Tree
