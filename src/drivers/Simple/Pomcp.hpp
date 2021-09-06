@@ -366,7 +366,7 @@ double PomcpPlanner<S,Z,A,B>::simulate(const S& state, Node<S,Z,B>* node, double
 			node->actionData.resize(node->validActions.size());
 		}
 		if (preferActions) {
-			// simulator.updatePreferredActionValues(node->actionData); // TODO
+			simulator.updatePreferredActionValues(node->actionData);
 		}
 		return rollout(state, depth, depthLevel);
 	}
@@ -378,8 +378,7 @@ double PomcpPlanner<S,Z,A,B>::simulate(const S& state, Node<S,Z,B>* node, double
 	} else {
 		double aux, max = 0;
 		for (unsigned a = 0; a<node->validActions.size(); a++) {
-			if (node->actionData[a].counter == 0) {
-			// if (node->actionData[a].counter == 0 && explorationConstant > 0.0) {
+			if (node->actionData[a].counter == 0 && explorationConstant > 0.0) {
 				actionIndex = node->validActions[a];
 				validActionIndex = a;
 				break;

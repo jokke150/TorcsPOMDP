@@ -138,7 +138,13 @@ public:
 	 * @param state: [IN] one state
 	 * @return an action
 	 */
-	virtual const A& samplePreferredAction(const S& state) const = 0;
+	virtual unsigned samplePreferredAction(const S& state) const = 0;
+	/**
+   	 * Modifies the action values according to a preferred action distribution.
+	 * @param state: [IN/OUT] one state
+	 * @return an action
+	 */
+	virtual void updatePreferredActionValues(std::vector<ActionData>& actionData) const = 0;
 	/**
    	 * Transform a given state so that it gives the same observation as the original state.
 	 * @param prevState: [IN] previous state

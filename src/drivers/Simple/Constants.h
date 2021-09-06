@@ -18,6 +18,8 @@ namespace pomdp
     static const double TRANSFER_QUOTA = 1.0/16;
     static const bool PARTICLE_RESAMP = false;
     static const double RESAMP_QUOTA = 1.0;
+    static const double PREF_ACT_SD = 0.4; // 20% Chance of actions <=-0.5 and >=0.5
+    static const double PREF_ACT_REWARD_BASE = 0.9;
 
     /* experiment constants */
     static const float TERMINAL_OFF_LANE_DIST = 1.05; // When to terminate episode

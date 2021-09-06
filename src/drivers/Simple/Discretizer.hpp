@@ -1,3 +1,6 @@
+#ifndef DISCRETIZER_HPP
+#define DISCRETIZER_HPP
+
 #include <vector>
 
 namespace utils
@@ -35,3 +38,5 @@ float Discretizer::discretize(const std::vector<float>& sortedBins, float value)
 }
 
 }
+
+#endif
