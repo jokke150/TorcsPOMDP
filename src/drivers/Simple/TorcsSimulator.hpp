@@ -13,6 +13,7 @@
 #include "Pomcp.hpp"
 #include "TorcsPomdp.hpp"
 #include "DrivingUtil.h"
+#include "Discretizer.hpp"
 
 using namespace pomcp;
 
@@ -47,7 +48,8 @@ public:
 	virtual const Action& getAction(unsigned actionIndex) const {return actions[actionIndex];}
 	virtual bool allActionsAreValid(const State& state) const {return true;}
 	virtual bool isValidAction(const State& state, unsigned actionIndex) const {return true;}
-	virtual const Action& samplePreferredAction(const State& state) const;
+	virtual unsigned samplePreferredAction(const State& state) const;
+	virtual void updatePreferredActionValues(std::vector<ActionData>& actionData) const;
 	virtual bool transform(const State& prevState, unsigned lastActionIndex, const State& curState, const Observation& observation, State& transformedState) const;
 
 	void test(const State& origState) const; // TODO: Remove
@@ -239,9 +241,25 @@ bool TorcsSimulator::simulate(const State& state, unsigned actionIndex, State& n
 }
 
 inline
-const Action& TorcsSimulator::samplePreferredAction(const State& state) const
+unsigned TorcsSimulator::samplePreferredAction(const State& state) const
 {
-	return getAction(0); // TODO
+	float action = (float) RANDOM(0.0, PREF_ACT_SD);
+	action = utils::Discretizer::discretize(actions, action);
+	auto it = std::find(actions.begin(), actions.end(), action);
+	auto index = std::distance(actions.begin(), it);
+	return index;
+}
+
+inline
+void TorcsSimulator::updatePreferredActionValues(std::vector<ActionData>& actionData) const
+{
+	for (size_t i = 0; i < actions.size(); i++) {
+		const double a = actions[i];
+		const double cdf = (1 + std::erf(a / 0.4 / std::sqrt(2))) / 2;
+		const double prob = a < 0 ? cdf : 1 - cdf;
+		actionData[i].value = PREF_ACT_REWARD_BASE + (1 - PREF_ACT_REWARD_BASE) * prob;
+	}
+	
 }
 
 inline

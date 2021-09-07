@@ -75,6 +75,7 @@ void Driver::newRace(tCarElt* car, tSituation *s, tRmInfo *ReInfo)
 		fileName += PARTICLE_REINV ? " reinv" : "";
 		fileName += PARTICLE_RESAMP ? " resamp" : "";
 		fileName += driverInitAtt ? " initial att" : "";
+		fileName += preferActions ? " prefer" : "";
 	}
     ofs.open ( fileName + ".csv", std::ofstream::out | std::ofstream::app);
 	ofs2.open ( fileName + ".txt", std::ofstream::out | std::ofstream::app);

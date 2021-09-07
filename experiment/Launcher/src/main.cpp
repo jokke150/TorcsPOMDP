@@ -65,7 +65,8 @@ void checkRC(int rc) {
 }
 
 void printConfig(string scenarioName, unsigned numSims, double expConst, double discount) {
-	std::cout << scenarioName + ": " + std::to_string(numSims) + " Simulations, " + std::to_string(expConst) + " exploration constant, " + std::to_string(discount) + " discount" <<std::endl;
+        string config = scenarioName + ": " + std::to_string(numSims) + " Simulations, " + std::to_string(expConst) + " exploration constant, " + std::to_string(discount) + " discount";
+        std::cout << config  << std::endl;
 }
 
 void readConfig(CSimpleIniA& ini) {
@@ -90,7 +91,9 @@ void writeConfig(CSimpleIniA& ini, unsigned numSims, double expConst, double dis
 }
 
 void launch() {
-	system("screen -d -m torcs -L /home/jokke/Repositories/TorcsPOMDP/build/lib/torcs -D /home/jokke/Repositories/TorcsPOMDP/build/share/games/torcs -r /home/jokke/Repositories/TorcsPOMDP/build/share/games/torcs/config/raceman/quickrace.xml -d &");
+	string command = "screen -d -m ";
+	command += "torcs -L /home/jokke/Repositories/TorcsPOMDP/build/lib/torcs -D /home/jokke/Repositories/TorcsPOMDP/build/share/games/torcs -r /home/jokke/Repositories/TorcsPOMDP/build/share/games/torcs/config/raceman/quickrace.xml -d &";
+	system(command.c_str());
 	sleep_for(seconds(10));
 }
 

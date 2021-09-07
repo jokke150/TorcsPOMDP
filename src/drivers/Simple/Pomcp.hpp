@@ -86,21 +86,6 @@ struct EdgeHasher
 };
 
 /**
- * class ActionData
- *
- * A structure containing information related to the actions that can be executed from a node of the search tree
- *
- * @author Ignacio Perez
- */
-struct ActionData
-{
-	ActionData() : counter(0), value(0) {}
-	virtual ~ActionData() {}
-	unsigned counter;
-	double value;
-};
-
-/**
  * class Node<S,Z,B>
  *
  * A structure representing the nodes of the search Tree
@@ -366,7 +351,7 @@ double PomcpPlanner<S,Z,A,B>::simulate(const S& state, Node<S,Z,B>* node, double
 			node->actionData.resize(node->validActions.size());
 		}
 		if (preferActions) {
-			// simulator.updatePreferredActionValues(node->actionData); // TODO
+			simulator.updatePreferredActionValues(node->actionData);
 		}
 		return rollout(state, depth, depthLevel);
 	}
@@ -378,8 +363,7 @@ double PomcpPlanner<S,Z,A,B>::simulate(const S& state, Node<S,Z,B>* node, double
 	} else {
 		double aux, max = 0;
 		for (unsigned a = 0; a<node->validActions.size(); a++) {
-			if (node->actionData[a].counter == 0) {
-			// if (node->actionData[a].counter == 0 && explorationConstant > 0.0) {
+			if (node->actionData[a].counter == 0 && explorationConstant > 0.0) {
 				actionIndex = node->validActions[a];
 				validActionIndex = a;
 				break;

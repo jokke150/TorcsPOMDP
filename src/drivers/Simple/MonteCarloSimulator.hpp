@@ -24,6 +24,21 @@
 namespace pomcp
 {
 /**
+ * class ActionData
+ *
+ * A structure containing information related to the actions that can be executed from a node of the search tree
+ *
+ * @author Ignacio Perez
+ */
+struct ActionData
+{
+	ActionData() : counter(0), value(0) {}
+	virtual ~ActionData() {}
+	unsigned counter;
+	double value;
+};
+
+/**
  * class Simulator<S,Z,A>
  *
  * This interface should be implemented in order to be used by the Pomcp Planner
@@ -138,7 +153,13 @@ public:
 	 * @param state: [IN] one state
 	 * @return an action
 	 */
-	virtual const A& samplePreferredAction(const S& state) const = 0;
+	virtual unsigned samplePreferredAction(const S& state) const = 0;
+	/**
+   	 * Modifies the action values according to a preferred action distribution.
+	 * @param state: [IN/OUT] one state
+	 * @return an action
+	 */
+	virtual void updatePreferredActionValues(std::vector<ActionData>& actionData) const = 0;
 	/**
    	 * Transform a given state so that it gives the same observation as the original state.
 	 * @param prevState: [IN] previous state
