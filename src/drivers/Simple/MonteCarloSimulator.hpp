@@ -156,8 +156,7 @@ public:
 	virtual unsigned samplePreferredAction(const S& state) const = 0;
 	/**
    	 * Modifies the action values according to a preferred action distribution.
-	 * @param state: [IN/OUT] one state
-	 * @return an action
+	 * @param state: [IN/OUT] action data
 	 */
 	virtual void updatePreferredActionValues(std::vector<ActionData>& actionData) const = 0;
 	/**

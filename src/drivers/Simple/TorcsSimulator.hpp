@@ -246,7 +246,7 @@ unsigned TorcsSimulator::samplePreferredAction(const State& state) const
 	float action = (float) RANDOM(0.0, PREF_ACT_SD);
 	action = utils::Discretizer::discretize(actions, action);
 	auto it = std::find(actions.begin(), actions.end(), action);
-	auto index = std::distance(actions.begin(), it);
+	unsigned index = std::distance(actions.begin(), it);
 	return index;
 }
 
