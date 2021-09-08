@@ -11,84 +11,101 @@ namespace fs = std::filesystem;
 using std::vector;
 using std::string;
 
-static const int NUM_RUNS = 10;
+// static const int NUM_RUNS = 10;
 static const int NUM_ACTIONS = 1000;
 static const string PATH = "/home/jokke/pCloudDrive/Utrecht/Thesis/Data/";
-static const string FOLDER = "Over Correct + Noise - 10 runs - 1000 actions - discount horizon 5";
-// "Simulations - 10 runs - 100 actions - discount horizon 5 - exp const 0.75";
-// "Over Correct - 10 runs - 1000 actions - discount horizon 5";
-// "Over Correct + Noise - 10 runs - 1000 actions - discount horizon 5";
+static const vector<string> FOLDERS = { 
+										"Over Correct + Noise - 50 runs - 1000 actions - discount horizon 5",
+										"Over Correct - 50 runs - 1000 actions - discount horizon 5",
+										"Simulations - 50 runs - 1000 actions - discount horizon 5 - exp const 0.75",
+										// "Simulations - 50 runs - 1000 actions - discount horizon 25 - exp const 1.5" ,
+										// "Over Correct - 50 runs - 1000 actions - discount horizon 25 - exp const 1.5",
+										// "Over Correct + Noise - 50 runs - 1000 actions - discount horizon 25 - exp const 1.5",
+										"Reduced Actions -  50 runs - 1000 actions - discount horizon 5",
+										"Reduced Actions - Over Correct - 50 runs - 1000 actions - discount horizon 5",
+										"Reduced Actions - Over Correct + Noise - 50 runs - 1000 actions - discount horizon 5",
+										"Preferred - 50 runs - 1000 actions - discount horizon 25 - exp const 1.5 - reduced",
+										"Preferred - Over Correct - 50 runs - 1000 actions - discount horizon 25 - exp const 1.5 - reduced",
+										"Preferred - Over Correct + Noise - 50 runs - 1000 actions - discount horizon 25 - exp const 1.5 - reduced"
+										};
 static const string EXT = ".csv";
 
 int main(int argc, char *argv[])
 {
-	std::map<int, string> scenarioBySimulations;
-    for (auto &p : fs::directory_iterator(PATH + FOLDER + "/"))
-    {
-        if (p.path().extension() == EXT) {
-			string scenario = p.path().stem().string();
-			std::regex rgx("\\ss(\\d+)\\s");
-			std::smatch match;
-			std::regex_search(scenario, match, rgx);
-			int simulations = std::stoi(match[1]);
-			scenarioBySimulations[simulations] = scenario;
+	for (string folder : FOLDERS) {
+		std::map<int, string> scenarioBySimulations;
+		for (auto &p : fs::directory_iterator(PATH + folder + "/"))
+		{
+			if (p.path().extension() == EXT) {
+				string scenario = p.path().stem().string();
+				std::regex rgx("\\ss(\\d+)\\s");
+				std::smatch match;
+				std::regex_search(scenario, match, rgx);
+				int simulations = std::stoi(match[1]);
+				scenarioBySimulations[simulations] = scenario;
+			}
 		}
-    }
 
-	CSVFormat format;
-	format.delimiter(',')
-		  .quote(false)
-      	  .header_row(0);
+		CSVFormat format;
+		format.delimiter(',')
+			.quote(false)
+			.header_row(0);
 
-	std::ofstream ofs;
-	auto writer = make_csv_writer(ofs);
-	ofs.open (FOLDER + " mean.csv", std::ofstream::out | std::ofstream::app);
-	writer << std::vector<string>({"Simulations", "Average Reward", "Standard Deviation", "Standard Error", "Min", "Max", "Cheat", "Terminal"});
-	
-	std::map<int, string> lineBySimulations;
+		std::ofstream ofs;
+		auto writer = make_csv_writer(ofs);
+		ofs.open (folder + " mean.csv", std::ofstream::out | std::ofstream::app);
+		writer << std::vector<string>({"Simulations", "Average Reward", "Standard Deviation", "Standard Error", "Min", "Max", "Cheat", "Terminal"});
+		
+		std::map<int, string> lineBySimulations;
 
-	for (const auto & [simulations, scenario]  : scenarioBySimulations) {
-		std::cout << scenario << "\n";
+		for (const auto & [simulations, scenario]  : scenarioBySimulations) {
+			std::cout << scenario << "\n";
 
-		CSVReader reader(PATH + FOLDER + "/" + scenario + ".csv", format);
+			CSVReader reader(PATH + folder + "/" + scenario + ".csv", format);
 
-		STATISTIC statistic;
+			STATISTIC statistic;
 
-		std::map<int, int> firstCheatByRun;
-		std::vector<int> terminalRuns;
-		int lastRun = 1;
-		double lastReward; 
-		for (CSVRow& row: reader) { // Input iterator
-			int run = row["Run"].get<int>();
-			if (lastRun != run) {
+			std::map<int, int> firstCheatByRun;
+			std::vector<int> terminalRuns;
+			int lastRun = 1;
+			double lastReward; 
+			bool terminal;
+			int count;
+			for (CSVRow& row: reader) { // Input iterator
+				int run = row["Run"].get<int>();
+				if (lastRun != run) {
+					statistic.Add(lastReward);
+					lastRun = run;
+				}
+
+				count = row["Count"].get<int>();
+				bool cheat = row["Cheat"].get<string>() == "cheat";
+				if (cheat && !firstCheatByRun.count(run)) {
+					firstCheatByRun[run] = count + 1;
+				}
+
+				terminal = row["Terminal"].get<bool>();
+				if (terminal) {
+					terminalRuns.push_back(run);
+				}
+
+				lastReward = row["Reward"].get<double>();
+			}
+
+			// TODO: Only add if full actions or terminal
+			if(count == NUM_ACTIONS || terminal) {
 				statistic.Add(lastReward);
-				lastRun = run;
 			}
-
-			int count = row["Count"].get<int>();
-			bool cheat = row["Cheat"].get<string>() == "cheat";
-			if (cheat && !firstCheatByRun.count(run)) {
-				firstCheatByRun[run] = count + 1;
-			}
-
-			bool terminal = row["Terminal"].get<bool>();
-			if (terminal) {
-				terminalRuns.push_back(run);
-			}
-
-			lastReward = row["Reward"].get<double>();
+			
+			writer << std::make_tuple(simulations, 
+									statistic.GetMean(), 
+									statistic.GetStdDev(), 
+									statistic.GetStdErr(), 
+									statistic.GetMin(), 
+									statistic.GetMax(), 
+									firstCheatByRun.size(), 
+									terminalRuns.size());
 		}
-
-		statistic.Add(lastReward);
-
-		writer << std::make_tuple(simulations, 
-								  statistic.GetMean(), 
-								  statistic.GetStdDev(), 
-								  statistic.GetStdErr(), 
-								  statistic.GetMin(), 
-								  statistic.GetMax(), 
-								  firstCheatByRun.size(), 
-								  terminalRuns.size());
 	}
 	return 0;
 	
